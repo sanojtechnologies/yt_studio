@@ -64,7 +64,7 @@ export default function AddToCompareButton({ channelId, channelTitle }: AddToCom
             : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-violet-400"
         }`}
       >
-        {inDraft ? "In comparison ×" : "Add to compare"}
+        {inDraft ? "In Comparison ×" : "Add To Compare"}
       </button>
       {draft.length >= 2 ? (
         <Link

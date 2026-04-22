@@ -18,11 +18,43 @@ interface ThumbnailAnalysisPanelProps {
 
 type Status = "idle" | "loading" | "ready" | "error";
 
+interface GeneratedVariant {
+  dataUrl: string;
+  mimeType: string;
+}
+
+interface ThumbnailGenerationResponse {
+  variants?: GeneratedVariant[];
+  error?: string;
+  detail?: string;
+}
+
+const THUMBNAIL_GENERATION_PROMPT_LIMIT = 500;
+
+function buildCompactThumbnailPrompt(title: string, suggestions: string[]): string {
+  const intro = `YouTube thumbnail for: "${title.trim().slice(0, 120)}". Apply: `;
+  const compactSuggestions = suggestions
+    .map((item) => item.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 4);
+  let merged = intro;
+  for (let idx = 0; idx < compactSuggestions.length; idx++) {
+    const suffix = `${idx + 1}) ${compactSuggestions[idx]}; `;
+    if ((merged + suffix).length > THUMBNAIL_GENERATION_PROMPT_LIMIT - 60) break;
+    merged += suffix;
+  }
+  merged += "High contrast, clear focal point, mobile-readable text.";
+  return merged.slice(0, THUMBNAIL_GENERATION_PROMPT_LIMIT);
+}
+
 export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAnalysisPanelProps) {
   const [analysis, setAnalysis] = useState<ThumbnailAnalysis | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
+  const [generatedVariants, setGeneratedVariants] = useState<GeneratedVariant[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState("");
 
   // Resolved once on mount; SSR → null and cache reads become no-ops.
   const storage = useMemo(resolveBrowserStorage, []);
@@ -33,6 +65,8 @@ export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAna
   useEffect(() => {
     if (!isActive) return;
     setError("");
+    setGenerationError("");
+    setGeneratedVariants([]);
     const entry = readCachedAnalysis(storage, video.id);
     if (entry) {
       setAnalysis(entry.analysis);
@@ -54,6 +88,8 @@ export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAna
 
     setStatus("loading");
     setError("");
+      setGenerationError("");
+      setGeneratedVariants([]);
 
     try {
       const response = await fetch("/api/thumbnail", {
@@ -80,6 +116,55 @@ export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAna
       setError(err instanceof Error ? err.message : "Failed to analyze thumbnail.");
     }
   }, [video, storage]);
+
+  const generateSuggestedThumbnails = useCallback(async () => {
+    if (!analysis) return;
+    const suggestions = analysis.improvementSuggestions
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 5);
+    if (suggestions.length === 0) {
+      setGenerationError("No improvement suggestions available to build a generation prompt.");
+      return;
+    }
+
+    const prompt = buildCompactThumbnailPrompt(video.title, suggestions);
+
+    setIsGenerating(true);
+    setGenerationError("");
+    try {
+      const response = await fetch("/api/studio/thumbnails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          styleHint: "YouTube thumbnail, high contrast, mobile-readable text hierarchy",
+          variantCount: 3,
+        }),
+      });
+      const payload = (await response.json()) as ThumbnailGenerationResponse;
+      if (!response.ok) {
+        throw new Error(
+          payload.error
+            ? payload.detail
+              ? `${payload.error}: ${payload.detail}`
+              : payload.error
+            : "Failed to generate thumbnails."
+        );
+      }
+      const variants = Array.isArray(payload.variants) ? payload.variants : [];
+      if (variants.length === 0) {
+        throw new Error("Image model returned no variants.");
+      }
+      setGeneratedVariants(variants.slice(0, 3));
+    } catch (err) {
+      setGenerationError(
+        err instanceof Error ? err.message : "Failed to generate thumbnails from suggestions."
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [analysis, video.title]);
 
   const isLoading = status === "loading";
   const cachedLabel = cachedAt ? formatRelativeTime(cachedAt, new Date()) : null;
@@ -108,8 +193,8 @@ export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAna
           {isLoading
             ? "Analyzing…"
             : analysis
-            ? "Re-analyze thumbnail"
-            : "Analyze thumbnail"}
+            ? "Re-Analyze Thumbnail"
+            : "Analyze Thumbnail"}
         </button>
         {cachedLabel && status !== "loading" ? (
           <span
@@ -119,10 +204,22 @@ export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAna
             Cached {cachedLabel}
           </span>
         ) : null}
+        {analysis ? (
+          <button
+            type="button"
+            onClick={generateSuggestedThumbnails}
+            disabled={isGenerating}
+            title="Generate 3 thumbnails from improvement suggestions"
+            className="inline-flex items-center gap-1.5 rounded-md border border-violet-500/40 bg-violet-500/10 px-2.5 py-1.5 text-xs font-medium text-violet-200 transition hover:border-violet-400/60 hover:bg-violet-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isGenerating ? "Generating 3 Thumbnails…" : "Generate 3 Thumbnails"}
+          </button>
+        ) : null}
       </div>
 
       {isLoading && <p className="text-sm text-zinc-400">Analyzing thumbnail with Gemini…</p>}
       {error && status === "error" && <p className="text-sm text-rose-400">{error}</p>}
+      {generationError ? <p className="text-sm text-rose-400">{generationError}</p> : null}
 
       {analysis ? (
         <div className="space-y-3 text-sm">
@@ -152,6 +249,36 @@ export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAna
               ))}
             </ul>
           </div>
+          {generatedVariants.length > 0 ? (
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+              <p className="text-zinc-400">Generated thumbnails (from suggestions)</p>
+              <ul className="mt-2 grid gap-3 sm:grid-cols-3">
+                {generatedVariants.map((variant, idx) => (
+                  <li
+                    key={`${variant.mimeType}-${idx}`}
+                    className="overflow-hidden rounded-lg border border-zinc-700 bg-zinc-950"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={variant.dataUrl}
+                      alt={`Generated thumbnail ${idx + 1}`}
+                      className="aspect-video w-full object-cover"
+                    />
+                    <div className="flex items-center justify-between px-2 py-1.5">
+                      <span className="text-[11px] text-zinc-400">Variant {idx + 1}</span>
+                      <a
+                        href={variant.dataUrl}
+                        download={`video-${video.id}-thumb-${idx + 1}.png`}
+                        className="text-[11px] text-violet-300 hover:text-violet-200"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : (
         !isLoading &&

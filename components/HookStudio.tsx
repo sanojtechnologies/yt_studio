@@ -76,7 +76,7 @@ export default function HookStudio() {
           disabled={loading || !title.trim() || !outline.trim()}
           className="rounded-xl bg-gradient-to-r from-blue-500 via-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          {loading ? "Crafting…" : "Generate hooks + description"}
+          {loading ? "Crafting…" : "Generate Hooks + Description"}
         </button>
         {error ? <p className="text-sm text-rose-400">{error}</p> : null}
       </form>

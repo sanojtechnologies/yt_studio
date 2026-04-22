@@ -53,7 +53,7 @@ export default function CompareGapClient({ ids }: CompareGapClientProps) {
             disabled={loading || ids.length < COMPARE_GAP_LIMITS.minChannels}
             className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
-            {loading ? "Analyzing…" : "Run gap analysis"}
+            {loading ? "Analyzing…" : "Run Gap Analysis"}
           </button>
         </div>
         <p className="text-xs text-zinc-500">

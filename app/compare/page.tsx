@@ -97,7 +97,7 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
                 href={`/compare/gap?ids=${ids.join(",")}`}
                 className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-sm font-medium text-violet-200 hover:border-violet-400 hover:text-white"
               >
-                Run gap analysis →
+                Run Gap Analysis →
               </Link>
             </div>
           </>
@@ -121,7 +121,7 @@ function Header() {
         className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-1.5 text-zinc-200 hover:border-violet-400 hover:text-white"
       >
         <span aria-hidden>←</span>
-        Channel lookup
+        Channel Lookup
       </Link>
       <h1 className="text-lg font-semibold text-zinc-100">Channel Comparison</h1>
       <div className="flex items-center gap-3 text-zinc-400">

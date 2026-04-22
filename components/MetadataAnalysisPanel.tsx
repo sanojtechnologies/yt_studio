@@ -17,6 +17,13 @@ interface MetadataAnalysisPanelProps {
 
 type Status = "idle" | "loading" | "ready" | "error";
 
+interface GeneratedMetadataPack {
+  overallScore: number;
+  title: string;
+  description: string;
+  tags: string[];
+}
+
 function scoreBadgeClass(score: number): string {
   if (score >= 8) return "bg-emerald-500/20 text-emerald-200";
   if (score >= 5) return "bg-amber-500/20 text-amber-200";
@@ -28,12 +35,17 @@ export default function MetadataAnalysisPanel({ video, isActive }: MetadataAnaly
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
+  const [generatedPack, setGeneratedPack] = useState<GeneratedMetadataPack | null>(null);
+  const [copyStatus, setCopyStatus] = useState<string>("");
+  const [isGeneratingPack, setIsGeneratingPack] = useState(false);
 
   const storage = useMemo(resolveBrowserStorage, []);
 
   useEffect(() => {
     if (!isActive) return;
     setError("");
+    setGeneratedPack(null);
+    setCopyStatus("");
     const entry = readCachedMetadata(storage, video.id);
     if (entry) {
       setAnalysis(entry.analysis);
@@ -49,6 +61,8 @@ export default function MetadataAnalysisPanel({ video, isActive }: MetadataAnaly
   const runAnalysis = useCallback(async () => {
     setStatus("loading");
     setError("");
+    setGeneratedPack(null);
+    setCopyStatus("");
 
     try {
       const response = await fetch("/api/video-metadata", {
@@ -76,6 +90,48 @@ export default function MetadataAnalysisPanel({ video, isActive }: MetadataAnaly
       setError(err instanceof Error ? err.message : "Failed to analyze metadata.");
     }
   }, [video, storage]);
+
+  const buildFromRecommendations = useCallback(async () => {
+    if (!analysis) return;
+    setIsGeneratingPack(true);
+    setError("");
+    setCopyStatus("");
+    try {
+      const recommendedTitle = analysis.titleSuggestions[0]?.trim() || video.title.trim();
+      const response = await fetch("/api/video-metadata/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoId: video.id,
+          currentTitle: video.title,
+          currentDescription: video.description,
+          currentTags: video.tags ?? [],
+          recommendedTitle,
+          topRecommendations: analysis.topRecommendations,
+          descriptionSuggestions: analysis.descriptionSuggestions,
+          suggestedTags: analysis.suggestedTags,
+        }),
+      });
+      const payload = (await response.json()) as GeneratedMetadataPack & { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Failed to generate metadata pack.");
+      }
+      setGeneratedPack(payload);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate metadata pack.");
+    } finally {
+      setIsGeneratingPack(false);
+    }
+  }, [analysis, video.description, video.id, video.tags, video.title]);
+
+  const copyText = useCallback(async (text: string, successMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyStatus(successMessage);
+    } catch {
+      setCopyStatus("Copy failed. Clipboard permission may be blocked.");
+    }
+  }, []);
 
   const isLoading = status === "loading";
   const cachedLabel = cachedAt ? formatRelativeTime(cachedAt, new Date()) : null;
@@ -112,8 +168,8 @@ export default function MetadataAnalysisPanel({ video, isActive }: MetadataAnaly
           {isLoading
             ? "Analyzing…"
             : analysis
-            ? "Re-analyze metadata"
-            : "Analyze metadata"}
+            ? "Re-Analyze Metadata"
+            : "Analyze Metadata"}
         </button>
         {cachedLabel && status !== "loading" ? (
           <span
@@ -122,6 +178,19 @@ export default function MetadataAnalysisPanel({ video, isActive }: MetadataAnaly
           >
             Cached {cachedLabel}
           </span>
+        ) : null}
+        {analysis ? (
+          <button
+            type="button"
+            onClick={() => void buildFromRecommendations()}
+            disabled={isGeneratingPack}
+            title="Generate title, description, and tags from recommendations"
+            className="inline-flex items-center gap-1.5 rounded-md border border-violet-500/40 bg-violet-500/10 px-2.5 py-1.5 text-xs font-medium text-violet-200 transition hover:border-violet-400/60 hover:bg-violet-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isGeneratingPack
+              ? "Generating Metadata…"
+              : "Generate Metadata"}
+          </button>
         ) : null}
       </div>
 
@@ -194,6 +263,92 @@ export default function MetadataAnalysisPanel({ video, isActive }: MetadataAnaly
               ))}
             </ol>
           </div>
+
+          {generatedPack ? (
+            <div className="rounded-lg border border-emerald-600/40 bg-emerald-500/10 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-emerald-200">Generated metadata pack</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void copyText(
+                      [
+                        `Title: ${generatedPack.title}`,
+                        "",
+                        "Description:",
+                        generatedPack.description,
+                        "",
+                        `Tags: ${generatedPack.tags.join(", ")}`,
+                      ].join("\n"),
+                      "Copied full metadata pack."
+                    )
+                  }
+                  className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-900"
+                >
+                  Copy All
+                </button>
+              </div>
+              <div className="mt-2 space-y-3 text-zinc-100">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-zinc-400">
+                    Overall SEO / Packaging Score
+                  </p>
+                  <p className="mt-1">{generatedPack.overallScore}/10</p>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs uppercase tracking-wide text-zinc-400">Title</p>
+                    <button
+                      type="button"
+                      onClick={() => void copyText(generatedPack.title, "Copied title.")}
+                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-900"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="mt-1">{generatedPack.title}</p>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs uppercase tracking-wide text-zinc-400">Description</p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void copyText(generatedPack.description, "Copied description.")
+                      }
+                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-900"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap">{generatedPack.description}</p>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs uppercase tracking-wide text-zinc-400">Tags</p>
+                    <button
+                      type="button"
+                      onClick={() => void copyText(generatedPack.tags.join(", "), "Copied tags.")}
+                      className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 hover:bg-zinc-900"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {generatedPack.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="inline-block rounded-full border border-zinc-700 bg-zinc-950 px-2 py-0.5 text-xs text-zinc-200"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {copyStatus ? <p className="mt-2 text-xs text-emerald-200">{copyStatus}</p> : null}
+            </div>
+          ) : null}
         </div>
       ) : (
         !isLoading &&

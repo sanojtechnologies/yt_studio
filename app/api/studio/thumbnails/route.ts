@@ -9,8 +9,13 @@ import {
 
 const MISSING_GEMINI_KEY_MESSAGE =
   "Add your Gemini API key in the API Keys panel to generate thumbnails.";
+const DEFAULT_THUMBNAIL_IMAGE_MODEL = "gemini-3.1-flash-image-preview";
 
-const IMAGE_MODEL = "gemini-2.5-flash-image-preview";
+/**
+ * Default to Nano Banana 2 for out-of-the-box behavior. Deployments can
+ * override with THUMBNAIL_IMAGE_MODEL without code changes.
+ */
+const IMAGE_MODEL = process.env.THUMBNAIL_IMAGE_MODEL?.trim() || DEFAULT_THUMBNAIL_IMAGE_MODEL;
 
 interface RequestBody {
   prompt?: string;
@@ -30,10 +35,48 @@ interface CandidateLike {
 
 interface ImageResponseShape {
   candidates?: CandidateLike[];
+  generatedImages?: Array<{ image?: { imageBytes?: string; mimeType?: string } }>;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
+  if (isRecord(error)) {
+    const nested =
+      getMaybeString(error, "message") ??
+      (isRecord(error.error) ? getMaybeString(error.error, "message") : undefined);
+    if (nested && nested.trim()) return nested.trim();
+    try {
+      return JSON.stringify(error);
+    } catch {
+      // fall through
+    }
+  }
+  return "Unknown error";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getMaybeString(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
 }
 
 function extractImages(response: ImageResponseShape): Array<{ dataUrl: string; mimeType: string }> {
   const out: Array<{ dataUrl: string; mimeType: string }> = [];
+  for (const generated of response.generatedImages ?? []) {
+    const data = generated.image?.imageBytes;
+    const mimeType = generated.image?.mimeType ?? "image/png";
+    if (data) {
+      out.push({ dataUrl: `data:${mimeType};base64,${data}`, mimeType });
+    }
+  }
   for (const candidate of response.candidates ?? []) {
     for (const part of candidate.content?.parts ?? []) {
       const data = part.inlineData?.data;
@@ -44,6 +87,10 @@ function extractImages(response: ImageResponseShape): Array<{ dataUrl: string; m
     }
   }
   return out;
+}
+
+function isGeminiImageModel(model: string): boolean {
+  return model.startsWith("gemini-");
 }
 
 export async function POST(request: Request) {
@@ -87,15 +134,33 @@ export async function POST(request: Request) {
   const variants: Array<{ dataUrl: string; mimeType: string }> = [];
   for (let i = 0; i < variantCount; i++) {
     try {
-      const response = (await client.models.generateContent({
-        model: IMAGE_MODEL,
-        contents: composedPrompt,
-      })) as unknown as ImageResponseShape;
+      const response = isGeminiImageModel(IMAGE_MODEL)
+        ? ((await client.models.generateContent({
+            model: IMAGE_MODEL,
+            contents: composedPrompt,
+            config: {
+              responseModalities: ["TEXT", "IMAGE"],
+              thinkingConfig: { thinkingBudget: 0 },
+            },
+          })) as unknown as ImageResponseShape)
+        : ((await client.models.generateImages({
+            model: IMAGE_MODEL,
+            prompt: composedPrompt,
+            config: { numberOfImages: 1 },
+          })) as unknown as ImageResponseShape);
       variants.push(...extractImages(response));
     } catch (error) {
-      void reportError(error, { route: "/api/studio/thumbnails", variant: i });
+      void reportError(error, {
+        route: "/api/studio/thumbnails",
+        variant: i,
+        model: IMAGE_MODEL,
+      });
       return NextResponse.json(
-        { error: "Image generation failed", variant: i },
+        {
+          error: "Image generation failed",
+          detail: getErrorMessage(error),
+          variant: i,
+        },
         { status: 502 }
       );
     }
@@ -111,5 +176,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     variants: variants.slice(0, variantCount),
     promptUsed: composedPrompt,
+    modelUsed: IMAGE_MODEL,
   });
 }

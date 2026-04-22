@@ -46,9 +46,15 @@ export default function TopicClusters() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelId: channelId.trim(), desiredClusters: desired }),
       });
-      const payload = (await res.json()) as { clusters?: AggregateClusterStats[]; error?: string };
+      const payload = (await res.json()) as {
+        clusters?: AggregateClusterStats[];
+        error?: string;
+        detail?: string;
+      };
       if (!res.ok) {
-        throw new Error(payload.error ?? `Request failed (${res.status}).`);
+        throw new Error(
+          payload.detail ? `${payload.error ?? "Request failed"}: ${payload.detail}` : payload.error ?? `Request failed (${res.status}).`
+        );
       }
       setClusters(payload.clusters ?? []);
     } catch (err) {
@@ -93,7 +99,7 @@ export default function TopicClusters() {
           disabled={loading || !channelId}
           className="rounded-xl bg-gradient-to-r from-blue-500 via-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          {loading ? "Clustering…" : "Cluster topics"}
+          {loading ? "Clustering…" : "Cluster Topics"}
         </button>
         {error ? <p className="text-sm text-rose-400">{error}</p> : null}
       </form>
@@ -165,7 +171,7 @@ function ClusterCard({ cluster }: { cluster: AggregateClusterStats }) {
           disabled={ideating}
           className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-medium text-violet-200 hover:border-violet-400 hover:text-white disabled:opacity-50"
         >
-          {ideating ? "Ideating…" : "Ideate for this cluster"}
+          {ideating ? "Ideating…" : "Ideate For This Cluster"}
         </button>
         {ideasError ? <p className="text-xs text-rose-400">{ideasError}</p> : null}
       </div>

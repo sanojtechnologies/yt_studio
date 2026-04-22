@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "WATCHPACK_POLLING=true next dev",
-    "build": "next build",
+    "dev:reset": "rm -rf .next && WATCHPACK_POLLING=true next dev",
+    "build": "npm run verify:strict && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -14,7 +15,9 @@
     "test:live": "vitest run tests/live",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "prd:check": "node scripts/check-prd-sync.mjs",
+    "verify:strict": "npm run coverage && npm run lint && npm run typecheck && npm run prd:check"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",

@@ -10,7 +10,31 @@ interface GeneratedVariant {
 interface ThumbnailApiResponse {
   variants: GeneratedVariant[];
   promptUsed: string;
+  modelUsed?: string;
   error?: string;
+  detail?: string;
+}
+
+const JSON_CONTENT_TYPE = "application/json";
+
+async function readApiPayload(response: Response): Promise<ThumbnailApiResponse | null> {
+  const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+  if (!contentType.includes(JSON_CONTENT_TYPE)) return null;
+  try {
+    return (await response.json()) as ThumbnailApiResponse;
+  } catch {
+    return null;
+  }
+}
+
+async function buildRequestError(response: Response): Promise<Error> {
+  const payload = await readApiPayload(response);
+  if (payload?.error) {
+    return new Error(payload.detail ? `${payload.error}: ${payload.detail}` : payload.error);
+  }
+  const text = (await response.text()).trim();
+  if (text.length > 0) return new Error(text.slice(0, 200));
+  return new Error(`Request failed (${response.status}).`);
 }
 
 export default function ThumbnailStudio() {
@@ -38,10 +62,11 @@ export default function ThumbnailStudio() {
           variantCount,
         }),
       });
-      const payload = (await res.json()) as ThumbnailApiResponse;
       if (!res.ok) {
-        throw new Error(payload.error ?? `Request failed (${res.status}).`);
+        throw await buildRequestError(res);
       }
+      const payload = await readApiPayload(res);
+      if (!payload) throw new Error("Server returned a non-JSON response.");
       setResult(payload);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not generate thumbnails.");
@@ -100,7 +125,7 @@ export default function ThumbnailStudio() {
           disabled={loading || !prompt.trim()}
           className="rounded-xl bg-gradient-to-r from-blue-500 via-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
-          {loading ? "Rendering…" : `Generate ${variantCount} thumbnail${variantCount === 1 ? "" : "s"}`}
+          {loading ? "Rendering…" : `Generate ${variantCount} Thumbnail${variantCount === 1 ? "" : "s"}`}
         </button>
         {error ? <p className="text-sm text-rose-400">{error}</p> : null}
       </form>
@@ -135,6 +160,11 @@ export default function ThumbnailStudio() {
           </ul>
           <details className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4 text-xs text-zinc-400">
             <summary className="cursor-pointer select-none">Prompt used</summary>
+            {result.modelUsed ? (
+              <p className="mt-3 text-[11px] text-zinc-400">
+                Model used: <span className="font-mono text-zinc-300">{result.modelUsed}</span>
+              </p>
+            ) : null}
             <pre className="mt-3 whitespace-pre-wrap text-[11px] text-zinc-300">{result.promptUsed}</pre>
           </details>
         </div>

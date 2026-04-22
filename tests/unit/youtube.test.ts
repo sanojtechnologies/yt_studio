@@ -110,8 +110,8 @@ describe("getChannelById", () => {
     await getChannelById(KEY, "UCabc");
     expect(channelsList).toHaveBeenCalledTimes(1);
 
-    // 1h TTL + 1s to guarantee strictly past the expiry boundary.
-    vi.setSystemTime(new Date("2026-01-01T01:00:01Z"));
+    // 24h TTL + 1s to guarantee strictly past the expiry boundary.
+    vi.setSystemTime(new Date("2026-01-02T00:00:01Z"));
     await getChannelById(KEY, "UCabc");
     expect(channelsList).toHaveBeenCalledTimes(2);
   });
@@ -279,6 +279,44 @@ describe("cache-hit branches", () => {
     expect(first).toEqual(second);
     expect(videosList).toHaveBeenCalledTimes(1);
   });
+
+  it("bypasses channel cache when explicitly requested", async () => {
+    channelsList.mockResolvedValue({
+      data: { items: [{ id: "UCabc", snippet: {}, statistics: {} }] },
+    });
+    const { getChannelById } = await loadYoutubeLib();
+    await getChannelById(KEY, "UCabc");
+    await getChannelById(KEY, "UCabc", { bypassCache: true });
+    expect(channelsList).toHaveBeenCalledTimes(2);
+  });
+
+  it("bypasses handle cache when explicitly requested", async () => {
+    channelsList.mockResolvedValue({
+      data: { items: [{ id: "UCabc", snippet: {}, statistics: {} }] },
+    });
+    const { getChannelByHandle } = await loadYoutubeLib();
+    await getChannelByHandle(KEY, "@LearnwithManoj");
+    await getChannelByHandle(KEY, "@LearnwithManoj", { bypassCache: true });
+    expect(channelsList).toHaveBeenCalledTimes(2);
+  });
+
+  it("bypasses videos cache when explicitly requested", async () => {
+    channelsList.mockResolvedValue({
+      data: { items: [{ contentDetails: { relatedPlaylists: { uploads: "UUabc" } } }] },
+    });
+    playlistItemsList.mockResolvedValue({
+      data: { items: [{ contentDetails: { videoId: "v1" } }], nextPageToken: undefined },
+    });
+    videosList.mockResolvedValue({
+      data: { items: [{ id: "v1", snippet: {}, contentDetails: {}, statistics: {} }] },
+    });
+    const { getChannelVideos } = await loadYoutubeLib();
+    await getChannelVideos(KEY, "UCabc", 1);
+    await getChannelVideos(KEY, "UCabc", 1, { bypassCache: true });
+    expect(channelsList).toHaveBeenCalledTimes(2);
+    expect(playlistItemsList).toHaveBeenCalledTimes(2);
+    expect(videosList).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("empty-result fallbacks", () => {
@@ -401,6 +439,14 @@ describe("getChannelVideos", () => {
     expect(await getChannelVideos(KEY, "UCabc")).toEqual([]);
   });
 
+  it("returns [] without caching when uploads playlist is missing and bypass is enabled", async () => {
+    channelsList.mockResolvedValueOnce({
+      data: { items: [{ contentDetails: {} }] },
+    });
+    const { getChannelVideos } = await loadYoutubeLib();
+    expect(await getChannelVideos(KEY, "UCabc", 50, { bypassCache: true })).toEqual([]);
+  });
+
   it("fetches uploads, paginates, and returns normalized videos", async () => {
     channelsList.mockResolvedValueOnce({
       data: {
@@ -520,6 +566,93 @@ describe("getChannelVideos", () => {
     await getChannelVideos(KEY, "UCabc", 9999);
     const callArgs = playlistItemsList.mock.calls[0][0];
     expect(callArgs.maxResults).toBe(50);
+  });
+});
+
+describe("getDashboardRefreshState", () => {
+  it("forces refresh when key or channel id is empty", async () => {
+    const { getDashboardRefreshState } = await loadYoutubeLib();
+    expect(getDashboardRefreshState(" ", "UCabc", 50)).toEqual({
+      lastRefreshedAt: null,
+      shouldForceRefresh: true,
+    });
+    expect(getDashboardRefreshState(KEY, "   ", 50)).toEqual({
+      lastRefreshedAt: null,
+      shouldForceRefresh: true,
+    });
+  });
+
+  it("returns stale/force-refresh when dashboard cache is missing", async () => {
+    const { getDashboardRefreshState } = await loadYoutubeLib();
+    expect(getDashboardRefreshState(KEY, "UCabc", 50)).toEqual({
+      lastRefreshedAt: null,
+      shouldForceRefresh: true,
+    });
+  });
+
+  it("returns cached refresh timestamp while data is younger than 24h", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    channelsList.mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: "UCabc",
+            snippet: {},
+            statistics: {},
+            contentDetails: { relatedPlaylists: { uploads: "UUabc" } },
+          },
+        ],
+      },
+    });
+    playlistItemsList.mockResolvedValueOnce({
+      data: { items: [{ contentDetails: { videoId: "v1" } }], nextPageToken: undefined },
+    });
+    videosList.mockResolvedValueOnce({
+      data: { items: [{ id: "v1", snippet: {}, contentDetails: {}, statistics: {} }] },
+    });
+    const { getChannelById, getChannelVideos, getDashboardRefreshState } = await loadYoutubeLib();
+
+    await getChannelById(KEY, "UCabc");
+    await getChannelVideos(KEY, "UCabc", 1);
+    vi.setSystemTime(new Date("2026-01-01T03:00:00Z"));
+
+    const result = getDashboardRefreshState(KEY, "UCabc", 1);
+    expect(result.shouldForceRefresh).toBe(false);
+    expect(result.lastRefreshedAt).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("forces refresh when cached dashboard data exceeds 24h", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    channelsList.mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: "UCabc",
+            snippet: {},
+            statistics: {},
+            contentDetails: { relatedPlaylists: { uploads: "UUabc" } },
+          },
+        ],
+      },
+    });
+    playlistItemsList.mockResolvedValueOnce({
+      data: { items: [{ contentDetails: { videoId: "v1" } }], nextPageToken: undefined },
+    });
+    videosList.mockResolvedValueOnce({
+      data: { items: [{ id: "v1", snippet: {}, contentDetails: {}, statistics: {} }] },
+    });
+    const { getChannelById, getChannelVideos, getDashboardRefreshState } = await loadYoutubeLib();
+
+    await getChannelById(KEY, "UCabc");
+    await getChannelVideos(KEY, "UCabc", 1);
+    vi.setSystemTime(new Date("2026-01-02T00:00:01Z"));
+
+    expect(getDashboardRefreshState(KEY, "UCabc", 1)).toEqual({
+      lastRefreshedAt: null,
+      shouldForceRefresh: true,
+    });
   });
 });
 

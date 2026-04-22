@@ -152,7 +152,7 @@ export default function CompareForm() {
           Compare {selected.length || ""}
         </button>
         <Link href="/lookup" className="text-sm text-violet-300 hover:text-violet-200">
-          Add a new channel first →
+          Add A New Channel First →
         </Link>
       </div>
     </section>

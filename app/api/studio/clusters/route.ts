@@ -22,6 +22,19 @@ interface RequestBody {
   desiredClusters?: number;
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) return error.message.trim();
+  if (typeof error === "string" && error.trim()) return error.trim();
+  if (typeof error === "object" && error !== null) {
+    try {
+      return JSON.stringify(error);
+    } catch {
+      // no-op
+    }
+  }
+  return "Unknown error";
+}
+
 export async function POST(request: Request) {
   const youtubeKey = getYouTubeApiKey();
   const geminiKey = getGeminiApiKey();
@@ -79,7 +92,10 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     void reportError(error, { route: "/api/studio/clusters", phase: "embed" });
-    return NextResponse.json({ error: "Failed to embed titles" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Failed to embed titles", detail: getErrorMessage(error) },
+      { status: 502 }
+    );
   }
 
   // embedTexts guarantees a 1:1 alignment with the input array (missing rows

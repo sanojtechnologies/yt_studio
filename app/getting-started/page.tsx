@@ -446,7 +446,7 @@ export default function GettingStartedPage() {
             href={ready ? "/lookup" : "/keys"}
             className="rounded-xl bg-gradient-to-r from-blue-500 via-violet-500 to-fuchsia-500 px-4 py-2.5 font-medium text-white hover:opacity-90"
           >
-            {ready ? "Analyze a channel →" : "Add your keys →"}
+            {ready ? "Analyze A Channel →" : "Add Your Keys →"}
           </Link>
         </footer>
       </div>

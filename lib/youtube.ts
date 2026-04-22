@@ -8,8 +8,16 @@ import {
   YouTubeQuotaExceededError,
 } from "@/lib/errors";
 
-const CACHE_TTL_MS = 60 * 60 * 1000;
-const cache = new Map<string, { expiresAt: number; data: unknown }>();
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const cache = new Map<string, { cachedAt: number; expiresAt: number; data: unknown }>();
+
+interface CacheOptions {
+  /**
+   * Skip in-memory cache reads/writes for this call. Use sparingly for explicit
+   * user-initiated refresh flows where fresh data is worth the extra quota.
+   */
+  bypassCache?: boolean;
+}
 
 function normalizeKey(apiKey: string): string {
   const trimmed = apiKey?.trim();
@@ -37,9 +45,61 @@ function getCached<T>(key: string): T | null {
   return cached.data as T;
 }
 
+function getCachedMeta(key: string): { cachedAt: number } | null {
+  const cached = cache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+  return { cachedAt: cached.cachedAt };
+}
+
 function setCached<T>(key: string, data: T): T {
-  cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, data });
+  const now = Date.now();
+  cache.set(key, { cachedAt: now, expiresAt: now + CACHE_TTL_MS, data });
   return data;
+}
+
+function channelByIdCacheKey(apiKey: string, channelId: string): string {
+  return `${scope(apiKey)}:channel:id:${channelId}`;
+}
+
+function channelVideosCacheKey(apiKey: string, channelId: string, maxResults: number): string {
+  return `${scope(apiKey)}:videos:channel:${channelId}:${maxResults}`;
+}
+
+export interface DashboardRefreshState {
+  lastRefreshedAt: string | null;
+  shouldForceRefresh: boolean;
+}
+
+export function getDashboardRefreshState(
+  apiKey: string,
+  channelId: string,
+  maxResults = 50
+): DashboardRefreshState {
+  const trimmedKey = apiKey.trim();
+  const normalizedId = channelId.trim();
+  const normalizedMax = Math.max(1, Math.min(50, maxResults));
+  if (!trimmedKey || !normalizedId) {
+    return { lastRefreshedAt: null, shouldForceRefresh: true };
+  }
+
+  const channelMeta = getCachedMeta(channelByIdCacheKey(trimmedKey, normalizedId));
+  const videosMeta = getCachedMeta(channelVideosCacheKey(trimmedKey, normalizedId, normalizedMax));
+
+  if (!channelMeta || !videosMeta) {
+    return { lastRefreshedAt: null, shouldForceRefresh: true };
+  }
+
+  const lastRefreshedMs = Math.min(channelMeta.cachedAt, videosMeta.cachedAt);
+  const isOlderThanDay = Date.now() - lastRefreshedMs > 24 * 60 * 60 * 1000;
+
+  return {
+    lastRefreshedAt: new Date(lastRefreshedMs).toISOString(),
+    shouldForceRefresh: isOlderThanDay,
+  };
 }
 
 function rethrowYouTubeError(error: unknown): never {
@@ -95,11 +155,15 @@ function toVideo(item: youtube_v3.Schema$Video): YouTubeVideo {
 
 async function getChannelUploadsPlaylistId(
   apiKey: string,
-  channelId: string
+  channelId: string,
+  options: CacheOptions = {}
 ): Promise<string | null> {
+  const bypassCache = options.bypassCache === true;
   const cacheKey = `${scope(apiKey)}:channel:uploads:${channelId}`;
-  const cached = getCached<string | null>(cacheKey);
-  if (cached !== null) return cached;
+  if (!bypassCache) {
+    const cached = getCached<string | null>(cacheKey);
+    if (cached !== null) return cached;
+  }
 
   const youtube = getYouTubeClient(apiKey);
   const response = await youtube.channels.list({
@@ -111,19 +175,23 @@ async function getChannelUploadsPlaylistId(
   const uploadsPlaylistId =
     response.data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads ?? null;
 
-  return setCached(cacheKey, uploadsPlaylistId);
+  return bypassCache ? uploadsPlaylistId : setCached(cacheKey, uploadsPlaylistId);
 }
 
 export async function getChannelByHandle(
   apiKey: string,
-  handle: string
+  handle: string,
+  options: CacheOptions = {}
 ): Promise<YouTubeChannel | null> {
+  const bypassCache = options.bypassCache === true;
   const normalizedHandle = handle.trim().replace(/^@/, "");
   if (!normalizedHandle) return null;
 
   const cacheKey = `${scope(apiKey)}:channel:handle:${normalizedHandle.toLowerCase()}`;
-  const cached = getCached<YouTubeChannel | null>(cacheKey);
-  if (cached !== null) return cached;
+  if (!bypassCache) {
+    const cached = getCached<YouTubeChannel | null>(cacheKey);
+    if (cached !== null) return cached;
+  }
 
   try {
     const youtube = getYouTubeClient(apiKey);
@@ -134,7 +202,8 @@ export async function getChannelByHandle(
     });
 
     const item = response.data.items?.[0];
-    return setCached(cacheKey, item ? toChannel(item) : null);
+    const mapped = item ? toChannel(item) : null;
+    return bypassCache ? mapped : setCached(cacheKey, mapped);
   } catch (error) {
     rethrowYouTubeError(error);
   }
@@ -142,14 +211,18 @@ export async function getChannelByHandle(
 
 export async function getChannelById(
   apiKey: string,
-  id: string
+  id: string,
+  options: CacheOptions = {}
 ): Promise<YouTubeChannel | null> {
+  const bypassCache = options.bypassCache === true;
   const normalizedId = id.trim();
   if (!normalizedId) return null;
 
-  const cacheKey = `${scope(apiKey)}:channel:id:${normalizedId}`;
-  const cached = getCached<YouTubeChannel | null>(cacheKey);
-  if (cached !== null) return cached;
+  const cacheKey = channelByIdCacheKey(apiKey, normalizedId);
+  if (!bypassCache) {
+    const cached = getCached<YouTubeChannel | null>(cacheKey);
+    if (cached !== null) return cached;
+  }
 
   try {
     const youtube = getYouTubeClient(apiKey);
@@ -160,7 +233,8 @@ export async function getChannelById(
     });
 
     const item = response.data.items?.[0];
-    return setCached(cacheKey, item ? toChannel(item) : null);
+    const mapped = item ? toChannel(item) : null;
+    return bypassCache ? mapped : setCached(cacheKey, mapped);
   } catch (error) {
     rethrowYouTubeError(error);
   }
@@ -169,19 +243,25 @@ export async function getChannelById(
 export async function getChannelVideos(
   apiKey: string,
   channelId: string,
-  maxResults = 50
+  maxResults = 50,
+  options: CacheOptions = {}
 ): Promise<YouTubeVideo[]> {
+  const bypassCache = options.bypassCache === true;
   const normalizedId = channelId.trim();
   const normalizedMax = Math.max(1, Math.min(50, maxResults));
   if (!normalizedId) return [];
 
-  const cacheKey = `${scope(apiKey)}:videos:channel:${normalizedId}:${normalizedMax}`;
-  const cached = getCached<YouTubeVideo[]>(cacheKey);
-  if (cached !== null) return cached;
+  const cacheKey = channelVideosCacheKey(apiKey, normalizedId, normalizedMax);
+  if (!bypassCache) {
+    const cached = getCached<YouTubeVideo[]>(cacheKey);
+    if (cached !== null) return cached;
+  }
 
   try {
-    const uploadsPlaylistId = await getChannelUploadsPlaylistId(apiKey, normalizedId);
-    if (!uploadsPlaylistId) return setCached(cacheKey, []);
+    const uploadsPlaylistId = await getChannelUploadsPlaylistId(apiKey, normalizedId, {
+      bypassCache,
+    });
+    if (!uploadsPlaylistId) return bypassCache ? [] : setCached(cacheKey, []);
 
     const youtube = getYouTubeClient(apiKey);
     const videoIds: string[] = [];
@@ -205,8 +285,10 @@ export async function getChannelVideos(
       if (!pageToken || idsFromPage.length === 0) break;
     }
 
-    const videos = await getVideoDetails(apiKey, videoIds.slice(0, normalizedMax));
-    return setCached(cacheKey, videos);
+    const videos = await getVideoDetails(apiKey, videoIds.slice(0, normalizedMax), {
+      bypassCache,
+    });
+    return bypassCache ? videos : setCached(cacheKey, videos);
   } catch (error) {
     rethrowYouTubeError(error);
   }
@@ -214,16 +296,20 @@ export async function getChannelVideos(
 
 export async function getVideoDetails(
   apiKey: string,
-  videoIds: string[]
+  videoIds: string[],
+  options: CacheOptions = {}
 ): Promise<YouTubeVideo[]> {
+  const bypassCache = options.bypassCache === true;
   const normalizedIds = Array.from(
     new Set(videoIds.map((id) => id.trim()).filter(Boolean))
   );
   if (normalizedIds.length === 0) return [];
 
   const cacheKey = `${scope(apiKey)}:videos:details:${normalizedIds.join(",")}`;
-  const cached = getCached<YouTubeVideo[]>(cacheKey);
-  if (cached !== null) return cached;
+  if (!bypassCache) {
+    const cached = getCached<YouTubeVideo[]>(cacheKey);
+    if (cached !== null) return cached;
+  }
 
   try {
     const youtube = getYouTubeClient(apiKey);
@@ -238,7 +324,7 @@ export async function getVideoDetails(
         ?.map((item) => toVideo(item))
         .filter((video) => Boolean(video.id)) ?? [];
 
-    return setCached(cacheKey, videos);
+    return bypassCache ? videos : setCached(cacheKey, videos);
   } catch (error) {
     rethrowYouTubeError(error);
   }

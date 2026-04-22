@@ -92,7 +92,7 @@ export default function AbTitleLab() {
             disabled={loading || !titleA.trim() || !titleB.trim()}
             className="rounded-lg bg-violet-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
-            {loading ? "Scoring…" : "Score titles"}
+            {loading ? "Scoring…" : "Score Titles"}
           </button>
         </div>
       </form>

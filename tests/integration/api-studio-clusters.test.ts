@@ -120,6 +120,55 @@ describe("POST /api/studio/clusters", () => {
     expect((await res.json()).error).toMatch(/embed/i);
   });
 
+  it("returns error detail when embedding rejects with a string payload", async () => {
+    setTestCookie("yt_api_key", YT_KEY);
+    setTestCookie("gemini_api_key", GEMINI_KEY);
+    getChannelVideosMock.mockResolvedValueOnce([video("a", "x"), video("b", "y")]);
+    embedContentMock.mockRejectedValueOnce("embed service unavailable");
+    const res = await POST({ channelId: "UC1" });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.detail).toContain("embed service unavailable");
+  });
+
+  it("falls back to Unknown error detail for unserializable payloads", async () => {
+    setTestCookie("yt_api_key", YT_KEY);
+    setTestCookie("gemini_api_key", GEMINI_KEY);
+    getChannelVideosMock.mockResolvedValueOnce([video("a", "x"), video("b", "y")]);
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    embedContentMock.mockRejectedValueOnce(circular);
+    const res = await POST({ channelId: "UC1" });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.detail).toBe("Unknown error");
+  });
+
+  it("falls back to Unknown error detail for null payloads", async () => {
+    setTestCookie("yt_api_key", YT_KEY);
+    setTestCookie("gemini_api_key", GEMINI_KEY);
+    getChannelVideosMock.mockResolvedValueOnce([video("a", "x"), video("b", "y")]);
+    embedContentMock.mockRejectedValueOnce(null);
+    const res = await POST({ channelId: "UC1" });
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.detail).toBe("Unknown error");
+  });
+
+  it("falls back to gemini-embedding-001 when primary embedding model is not found", async () => {
+    setTestCookie("yt_api_key", YT_KEY);
+    setTestCookie("gemini_api_key", GEMINI_KEY);
+    getChannelVideosMock.mockResolvedValueOnce([video("a", "x"), video("b", "y")]);
+    embedContentMock
+      .mockRejectedValueOnce(new Error("404 NOT_FOUND: model not found"))
+      .mockResolvedValueOnce({
+        embeddings: [{ values: [1, 0] }, { values: [0, 1] }],
+      });
+    const res = await POST({ channelId: "UC1", desiredClusters: 2 });
+    expect(res.status).toBe(200);
+    expect(embedContentMock).toHaveBeenCalledTimes(2);
+  });
+
   it("returns 502 when the embedding service yields no usable vectors", async () => {
     setTestCookie("yt_api_key", YT_KEY);
     setTestCookie("gemini_api_key", GEMINI_KEY);

@@ -75,7 +75,7 @@ export default function ExportButton({ channel, videos }: ExportButtonProps) {
             onClick={exportCsv}
             className="block w-full px-3 py-2 text-left text-sm text-zinc-100 hover:bg-zinc-800"
           >
-            Videos as CSV
+            Videos As CSV
           </button>
           <button
             type="button"
@@ -83,7 +83,7 @@ export default function ExportButton({ channel, videos }: ExportButtonProps) {
             onClick={exportJson}
             className="block w-full px-3 py-2 text-left text-sm text-zinc-100 hover:bg-zinc-800"
           >
-            Snapshot as JSON
+            Snapshot As JSON
           </button>
         </div>
       ) : null}

@@ -18,12 +18,15 @@ import VideoGrid from "@/components/VideoGrid";
 import { getYouTubeApiKey } from "@/lib/apiKey";
 import { enrichVideosWithShortsProbe } from "@/lib/shortsProbe";
 import { calculateStats } from "@/lib/stats";
-import { getChannelById, getChannelVideos } from "@/lib/youtube";
+import { getChannelById, getChannelVideos, getDashboardRefreshState } from "@/lib/youtube";
 import { YouTubeChannel, YouTubeVideo } from "@/types/youtube";
 
 interface DashboardPageProps {
   params: {
     channelId: string;
+  };
+  searchParams?: {
+    refresh?: string;
   };
 }
 
@@ -68,6 +71,19 @@ function GridSkeleton() {
       ))}
     </div>
   );
+}
+
+function formatLastRefreshedLabel(lastRefreshedAt: string): string {
+  const refreshedMs = Date.parse(lastRefreshedAt);
+  if (!Number.isFinite(refreshedMs)) return "Unknown";
+  const diffMs = Math.max(0, Date.now() - refreshedMs);
+  const diffMinutes = Math.floor(diffMs / (60 * 1000));
+  if (diffMinutes < 1) return "just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
 }
 
 async function HeaderSection({
@@ -142,18 +158,29 @@ async function GridSection({ videosPromise }: { videosPromise: Promise<YouTubeVi
   return <VideoGrid videos={videos} />;
 }
 
-export default async function DashboardPage({ params }: DashboardPageProps) {
+export default async function DashboardPage({ params, searchParams }: DashboardPageProps) {
   const apiKey = getYouTubeApiKey();
   if (!apiKey) {
     return <ApiKeyMissing />;
   }
+  const refreshState = getDashboardRefreshState(apiKey, params.channelId, 50);
+  const forceRefresh = searchParams?.refresh === "1" || refreshState.shouldForceRefresh;
+  const lastRefreshedLabel = forceRefresh
+    ? "just now"
+    : refreshState.lastRefreshedAt
+      ? formatLastRefreshedLabel(refreshState.lastRefreshedAt)
+      : "never";
 
-  const channelPromise = getChannelById(apiKey, params.channelId);
+  const channelPromise = getChannelById(apiKey, params.channelId, {
+    bypassCache: forceRefresh,
+  });
   // Fetch videos, then enrich ambiguous-duration ones (≤ SHORT_MAX_SECONDS)
   // with YouTube's authoritative isShort signal from `/shorts/{id}`. The
   // resulting promise is shared across all Suspense boundaries so the
   // probe fans out exactly once per page render.
-  const videosPromise = getChannelVideos(apiKey, params.channelId, 50).then(
+  const videosPromise = getChannelVideos(apiKey, params.channelId, 50, {
+    bypassCache: forceRefresh,
+  }).then(
     (videos) => enrichVideosWithShortsProbe(videos)
   );
 
@@ -161,13 +188,28 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
     <main id="main" className="min-h-screen bg-zinc-950 px-4 py-6 text-zinc-100 md:px-8 md:py-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
         <nav className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <Link
-            href="/lookup"
-            className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-1.5 text-zinc-200 hover:border-violet-400 hover:text-white"
-          >
-            <span aria-hidden>←</span>
-            Analyze another channel
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/lookup"
+              className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-1.5 text-zinc-200 hover:border-violet-400 hover:text-white"
+            >
+              <span aria-hidden>←</span>
+              Analyze Another Channel
+            </Link>
+            <Link
+              href={`/dashboard/${params.channelId}?refresh=1`}
+              className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-1.5 text-zinc-200 hover:border-violet-400 hover:text-white"
+              title="Fetch fresh channel and video data now (bypasses server cache once)."
+            >
+              Refresh Data
+            </Link>
+            <span
+              className="inline-flex items-center rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-400"
+              title="Data older than 24 hours is auto-refreshed from YouTube."
+            >
+              Last refreshed: {lastRefreshedLabel}
+            </span>
+          </div>
           <div className="flex items-center gap-3 text-zinc-400">
             <Link href="/studio" className="hover:text-violet-300">
               Studio
