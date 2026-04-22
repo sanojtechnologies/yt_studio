@@ -143,6 +143,34 @@ export function videosMaterialChange(
   return false;
 }
 
+/**
+ * Shape-only comparison for deciding whether two snapshots represent the same
+ * video lineup. Ignores view-count drift so repeated dashboard opens on the
+ * same day don't create noisy history entries.
+ */
+export function videosStructuralChange(
+  prev: YouTubeVideo[],
+  next: YouTubeVideo[]
+): boolean {
+  if (prev.length !== next.length) return true;
+  const prevIds = new Set(prev.map((v) => v.id));
+  for (const v of next) {
+    if (!prevIds.has(v.id)) return true;
+  }
+  return false;
+}
+
+function isSameUtcDay(aIso: string, bIso: string): boolean {
+  const a = new Date(aIso);
+  const b = new Date(bIso);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
+  return (
+    a.getUTCFullYear() === b.getUTCFullYear() &&
+    a.getUTCMonth() === b.getUTCMonth() &&
+    a.getUTCDate() === b.getUTCDate()
+  );
+}
+
 /** Return the newest entry (last push) in a non-empty history. */
 export function latestEntry(history: DashboardHistory): DashboardSnapshot {
   return history.entries[history.entries.length - 1];
@@ -174,6 +202,24 @@ export function appendEntry(
     // No meaningful change; keep series unchanged but freshen the title
     // in case the creator renamed the channel between refreshes.
     return { ...history, channelTitle: snap.channel.title };
+  }
+
+  // Daily noise guard: when the channel/video lineup is unchanged on the same
+  // UTC date, refresh the latest entry in place instead of appending another
+  // row. This keeps "snapshots tracked" meaningful for day-level history.
+  if (
+    Number.isFinite(deltaMs) &&
+    deltaMs >= dedupeWindowMs &&
+    isSameUtcDay(newest.savedAt, snap.savedAt) &&
+    !videosStructuralChange(newest.videos, snap.videos)
+  ) {
+    const nextEntries = [...history.entries];
+    nextEntries[nextEntries.length - 1] = snap;
+    return {
+      ...history,
+      channelTitle: snap.channel.title,
+      entries: nextEntries,
+    };
   }
 
   const nextEntries = [...history.entries, snap];

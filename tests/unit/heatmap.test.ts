@@ -19,8 +19,17 @@ describe("buildPublishHeatmap", () => {
   it("returns a full 168-cell grid even when the input is empty", () => {
     const result = buildPublishHeatmap([]);
     expect(result.cells).toHaveLength(7 * 24);
-    expect(result.cells.every((cell) => cell.count === 0 && cell.medianViews === 0)).toBe(true);
+    expect(
+      result.cells.every(
+        (cell) =>
+          cell.count === 0 &&
+          cell.medianViews === 0 &&
+          cell.maxViews === 0 &&
+          cell.recommendationScore === 0
+      )
+    ).toBe(true);
     expect(result.maxMedianViews).toBe(0);
+    expect(result.maxPeakViews).toBe(0);
     expect(result.bestCell).toBeNull();
   });
 
@@ -34,6 +43,8 @@ describe("buildPublishHeatmap", () => {
     expect(cell?.count).toBe(2);
     // Median of [1000, 2000] = 1500.
     expect(cell?.medianViews).toBe(1500);
+    expect(cell?.maxViews).toBe(2000);
+    expect(cell?.recommendationScore).toBeCloseTo(1500 * Math.log1p(2));
   });
 
   it("uses median (not mean) so a single viral video doesn't dominate a cell", () => {
@@ -49,13 +60,19 @@ describe("buildPublishHeatmap", () => {
     expect(cell?.medianViews).toBe(105);
   });
 
-  it("identifies the strongest cell across the grid", () => {
+  it("identifies the strongest cell using reliability-adjusted score", () => {
     const result = buildPublishHeatmap([
       video("2025-01-06T17:00:00Z", 5000), // Mon 17 UTC
       video("2025-01-08T03:00:00Z", 1000), // Wed 03 UTC
+      video("2025-01-08T03:10:00Z", 1000),
+      video("2025-01-08T03:20:00Z", 1000),
+      video("2025-01-08T03:30:00Z", 1000),
+      video("2025-01-08T03:40:00Z", 1000),
+      video("2025-01-08T03:50:00Z", 1000),
     ]);
-    expect(result.bestCell).toEqual({ day: 1, hour: 17, medianViews: 5000 });
+    expect(result.bestCell).toMatchObject({ day: 3, hour: 3, medianViews: 1000, count: 6 });
     expect(result.maxMedianViews).toBe(5000);
+    expect(result.maxPeakViews).toBe(5000);
   });
 
   it("ignores videos with unparseable publishedAt", () => {
@@ -63,7 +80,7 @@ describe("buildPublishHeatmap", () => {
       video("not-a-date", 999_999),
       video("2025-01-06T17:00:00Z", 100),
     ]);
-    expect(result.bestCell).toEqual({ day: 1, hour: 17, medianViews: 100 });
+    expect(result.bestCell).toMatchObject({ day: 1, hour: 17, medianViews: 100, count: 1 });
   });
 
   it("exports day-name labels in Sunday-first order matching getUTCDay()", () => {
@@ -80,11 +97,25 @@ describe("buildPublishHeatmap", () => {
       "America/Los_Angeles"
     );
     const la = result.cells.find((c) => c.count > 0);
-    expect(la).toEqual({ day: 1, hour: 18, count: 1, medianViews: 500 });
+    expect(la).toEqual({
+      day: 1,
+      hour: 18,
+      count: 1,
+      medianViews: 500,
+      maxViews: 500,
+      recommendationScore: 500 * Math.log1p(1),
+    });
 
     // Same input, default zone — confirms the default path still lands on UTC.
     const utc = buildPublishHeatmap([video("2025-01-07T02:30:00Z", 500)]);
     const utcCell = utc.cells.find((c) => c.count > 0);
-    expect(utcCell).toEqual({ day: 2, hour: 2, count: 1, medianViews: 500 });
+    expect(utcCell).toEqual({
+      day: 2,
+      hour: 2,
+      count: 1,
+      medianViews: 500,
+      maxViews: 500,
+      recommendationScore: 500 * Math.log1p(1),
+    });
   });
 });

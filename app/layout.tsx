@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import CommandPalette from "@/components/CommandPalette";
 import DonateLink from "@/components/DonateLink";
+import MobileFooterCta from "@/components/MobileFooterCta";
+import PoweredByLink from "@/components/PoweredByLink";
 import { getSiteUrlObject } from "@/lib/siteUrl";
 import ThemeToggle from "@/components/ThemeToggle";
 import "./globals.css";
@@ -79,7 +81,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://i.ytimg.com" />
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.className} pb-24 sm:pb-0`}>
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-violet-500 focus:px-3 focus:py-2 focus:text-sm focus:text-white"
@@ -94,6 +96,8 @@ export default function RootLayout({
         <div className="fixed right-4 top-4 z-40">
           <ThemeToggle />
         </div>
+        <MobileFooterCta />
+        <PoweredByLink />
         <DonateLink />
         <CommandPalette />
       </body>

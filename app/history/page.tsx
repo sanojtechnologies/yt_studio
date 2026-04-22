@@ -26,6 +26,35 @@ function compactNumber(value: number): string {
   return value.toLocaleString();
 }
 
+function ChannelAvatar({
+  thumbnailUrl,
+  displayName,
+}: {
+  thumbnailUrl?: string;
+  displayName: string;
+}) {
+  const [broken, setBroken] = useState(false);
+  const src = thumbnailUrl?.trim();
+  if (!src || broken) {
+    return (
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-xs text-zinc-500">
+        {displayName.slice(0, 1).toUpperCase()}
+      </div>
+    );
+  }
+  return (
+    <Image
+      src={src}
+      alt={displayName}
+      width={40}
+      height={40}
+      onError={() => setBroken(true)}
+      unoptimized
+      className="size-10 shrink-0 rounded-full border border-zinc-800 object-cover"
+    />
+  );
+}
+
 export default function HistoryPage() {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [snapshots, setSnapshots] = useState<Record<string, SnapshotSummary>>({});
@@ -120,20 +149,7 @@ export default function HistoryPage() {
                   href={`/dashboard/${item.channelId}`}
                   className="flex items-center gap-4 rounded-lg border border-zinc-800 bg-zinc-950/70 px-4 py-3 hover:border-violet-500/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
                 >
-                  {item.thumbnailUrl ? (
-                    <Image
-                      src={item.thumbnailUrl}
-                      alt={displayName}
-                      width={40}
-                      height={40}
-                      className="size-10 shrink-0 rounded-full border border-zinc-800 object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-zinc-800 bg-zinc-900 text-xs text-zinc-500">
-                      {displayName.slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
+                  <ChannelAvatar thumbnailUrl={item.thumbnailUrl} displayName={displayName} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-zinc-100">{displayName}</p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-400">

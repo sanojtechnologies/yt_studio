@@ -19,6 +19,7 @@ import {
   summarizeSnapshot,
   upsertHistory,
   videosMaterialChange,
+  videosStructuralChange,
 } from "@/lib/dashboardSnapshot";
 import { YouTubeChannel, YouTubeVideo } from "@/types/youtube";
 
@@ -308,6 +309,16 @@ describe("videosMaterialChange", () => {
   });
 });
 
+describe("videosStructuralChange", () => {
+  it("flags structural changes when ids differ", () => {
+    expect(videosStructuralChange([vid("a", 10)], [vid("b", 10)])).toBe(true);
+  });
+
+  it("ignores view-count drift when ids are unchanged", () => {
+    expect(videosStructuralChange([vid("a", 10)], [vid("a", 20)])).toBe(false);
+  });
+});
+
 describe("appendEntry", () => {
   const savedT0 = "2026-04-21T10:00:00Z";
 
@@ -320,16 +331,39 @@ describe("appendEntry", () => {
     };
   }
 
-  it("appends when the dedupe window has elapsed", () => {
+  it("appends when the dedupe window has elapsed on a later day", () => {
     const history = makeHistory({ savedAt: savedT0, videos: [vid("a", 1)] });
     const next = buildSnapshot(
       channel,
       [vid("a", 1)],
-      new Date(Date.parse(savedT0) + HISTORY_DEDUPE_WINDOW_MS + 1)
+      new Date(Date.parse(savedT0) + 24 * 60 * 60 * 1000 + HISTORY_DEDUPE_WINDOW_MS + 1)
     );
     const out = appendEntry(history, next);
     expect(out.entries).toHaveLength(2);
     expect(latestEntry(out)).toBe(next);
+  });
+
+  it("replaces the latest entry on the same day when only views changed", () => {
+    const history = makeHistory({ savedAt: savedT0, videos: [vid("a", 1)] });
+    const next = buildSnapshot(
+      channel,
+      [vid("a", 99)],
+      new Date(Date.parse(savedT0) + HISTORY_DEDUPE_WINDOW_MS + 60_000)
+    );
+    const out = appendEntry(history, next);
+    expect(out.entries).toHaveLength(1);
+    expect(out.entries[0]).toBe(next);
+  });
+
+  it("still appends on the same day when video lineup changed", () => {
+    const history = makeHistory({ savedAt: savedT0, videos: [vid("a", 1)] });
+    const next = buildSnapshot(
+      channel,
+      [vid("a", 1), vid("b", 1)],
+      new Date(Date.parse(savedT0) + HISTORY_DEDUPE_WINDOW_MS + 60_000)
+    );
+    const out = appendEntry(history, next);
+    expect(out.entries).toHaveLength(2);
   });
 
   it("appends when videos materially changed even inside the window", () => {
@@ -390,7 +424,7 @@ describe("appendEntry", () => {
     const next = buildSnapshot(
       channel,
       [vid("a", 1)],
-      new Date(Date.parse(savedT0) + 1_000)
+      new Date(Date.parse(savedT0) + 24 * 60 * 60 * 1000 + 1_000)
     );
     // Shrink the window so the 1s delta no longer qualifies as a dupe.
     expect(appendEntry(history, next, { dedupeWindowMs: 500 }).entries).toHaveLength(2);
@@ -401,7 +435,7 @@ describe("appendEntry", () => {
     const fresh: { savedAt: string; videos: YouTubeVideo[] }[] = [];
     for (let i = 0; i < 3; i++) {
       fresh.push({
-        savedAt: new Date(baseMs + i * HISTORY_DEDUPE_WINDOW_MS * 2).toISOString(),
+        savedAt: new Date(baseMs + i * 24 * 60 * 60 * 1000).toISOString(),
         videos: [vid("a", i)],
       });
     }
@@ -409,7 +443,7 @@ describe("appendEntry", () => {
     const next = buildSnapshot(
       channel,
       [vid("a", 99)],
-      new Date(baseMs + 3 * HISTORY_DEDUPE_WINDOW_MS * 2)
+      new Date(baseMs + 3 * 24 * 60 * 60 * 1000)
     );
     const out = appendEntry(history, next, { cap: 2 });
     expect(out.entries).toHaveLength(2);

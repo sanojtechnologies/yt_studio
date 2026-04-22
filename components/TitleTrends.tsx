@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
+import InfoHint from "@/components/InfoHint";
 import { extractNgrams, NgramEntry } from "@/lib/ngrams";
 import { YouTubeVideo } from "@/types/youtube";
 
@@ -23,16 +25,71 @@ export default function TitleTrends({ videos }: TitleTrendsProps) {
     () => extractNgrams(videos, { n: 2, minCount: 2, limit: 12 }),
     [videos]
   );
+  const topKeyword = unigrams[0];
+  const topPhrase = bigrams[0];
+  const titleTemplate = topPhrase
+    ? `Use "${toTitleCase(topPhrase.phrase)}" as your opening phrase and append the specific outcome.`
+    : topKeyword
+      ? `Front-load "${toTitleCase(topKeyword.phrase)}" in your next title and keep the promise concrete.`
+      : "No repeatable title signal yet. Build a 5-video micro-series around one topic cluster.";
+  const confidence: "High" | "Medium" | "Low" =
+    videos.length >= 20 ? "High" : videos.length >= 10 ? "Medium" : "Low";
+  const confidenceStyle =
+    confidence === "High"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+      : confidence === "Medium"
+        ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+        : "border-zinc-700 bg-zinc-800/60 text-zinc-300";
 
   if (unigrams.length === 0 && bigrams.length === 0) return null;
+  const seedPhrase = encodeURIComponent(topPhrase?.phrase ?? topKeyword?.phrase ?? "");
 
   return (
     <section className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-zinc-100">Title trends</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-zinc-100">Title trends</h2>
+          <InfoHint label="This section identifies repeat title language that actually attracted views, then suggests what to reuse next." />
+        </div>
         <p className="text-xs text-zinc-500">
           Phrases ranked by the views their titles earned.
         </p>
+      </div>
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        <article className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+          <p className="text-xs text-zinc-500">Winning Pattern</p>
+          <p className="mt-1 text-sm text-zinc-200">
+            {topPhrase
+              ? `"${toTitleCase(topPhrase.phrase)}" is your strongest repeated phrase by weighted views.`
+              : topKeyword
+                ? `"${toTitleCase(topKeyword.phrase)}" is your strongest recurring keyword.`
+                : "No clear winner yet."}
+          </p>
+        </article>
+        <article className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-zinc-500">Signal Confidence</p>
+            <span className={`rounded-full border px-2 py-0.5 text-[11px] ${confidenceStyle}`}>
+              {confidence}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-zinc-300">
+            Based on {videos.length} recent titles and phrase repetition density.
+          </p>
+        </article>
+        <article className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+          <p className="text-xs text-zinc-500">Next Action</p>
+          <p className="mt-1 text-sm text-zinc-200">{titleTemplate}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Link
+              href={`/studio/titles?seed=${seedPhrase}`}
+              className="inline-flex items-center rounded-lg border border-violet-500/40 bg-violet-500/10 px-2.5 py-1 text-xs font-medium text-violet-200 hover:border-violet-400 hover:bg-violet-500/20"
+              title="Open Title Lab and apply this pattern in your next title batch."
+            >
+              Apply This Title Pattern
+            </Link>
+          </div>
+        </article>
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <TrendColumn heading="Keywords" entries={unigrams} />
@@ -40,6 +97,10 @@ export default function TitleTrends({ videos }: TitleTrendsProps) {
       </div>
     </section>
   );
+}
+
+function toTitleCase(value: string): string {
+  return value.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function TrendColumn({ heading, entries }: { heading: string; entries: NgramEntry[] }) {

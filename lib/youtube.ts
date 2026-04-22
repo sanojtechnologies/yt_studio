@@ -13,8 +13,8 @@ const cache = new Map<string, { cachedAt: number; expiresAt: number; data: unkno
 
 interface CacheOptions {
   /**
-   * Skip in-memory cache reads/writes for this call. Use sparingly for explicit
-   * user-initiated refresh flows where fresh data is worth the extra quota.
+   * Skip in-memory cache reads for this call. Fresh results are still written
+   * back into cache so subsequent requests can reuse them.
    */
   bypassCache?: boolean;
 }
@@ -175,7 +175,7 @@ async function getChannelUploadsPlaylistId(
   const uploadsPlaylistId =
     response.data.items?.[0]?.contentDetails?.relatedPlaylists?.uploads ?? null;
 
-  return bypassCache ? uploadsPlaylistId : setCached(cacheKey, uploadsPlaylistId);
+  return setCached(cacheKey, uploadsPlaylistId);
 }
 
 export async function getChannelByHandle(
@@ -203,7 +203,7 @@ export async function getChannelByHandle(
 
     const item = response.data.items?.[0];
     const mapped = item ? toChannel(item) : null;
-    return bypassCache ? mapped : setCached(cacheKey, mapped);
+    return setCached(cacheKey, mapped);
   } catch (error) {
     rethrowYouTubeError(error);
   }
@@ -234,7 +234,7 @@ export async function getChannelById(
 
     const item = response.data.items?.[0];
     const mapped = item ? toChannel(item) : null;
-    return bypassCache ? mapped : setCached(cacheKey, mapped);
+    return setCached(cacheKey, mapped);
   } catch (error) {
     rethrowYouTubeError(error);
   }
@@ -261,7 +261,7 @@ export async function getChannelVideos(
     const uploadsPlaylistId = await getChannelUploadsPlaylistId(apiKey, normalizedId, {
       bypassCache,
     });
-    if (!uploadsPlaylistId) return bypassCache ? [] : setCached(cacheKey, []);
+    if (!uploadsPlaylistId) return setCached(cacheKey, []);
 
     const youtube = getYouTubeClient(apiKey);
     const videoIds: string[] = [];
@@ -288,7 +288,7 @@ export async function getChannelVideos(
     const videos = await getVideoDetails(apiKey, videoIds.slice(0, normalizedMax), {
       bypassCache,
     });
-    return bypassCache ? videos : setCached(cacheKey, videos);
+    return setCached(cacheKey, videos);
   } catch (error) {
     rethrowYouTubeError(error);
   }
@@ -324,7 +324,7 @@ export async function getVideoDetails(
         ?.map((item) => toVideo(item))
         .filter((video) => Boolean(video.id)) ?? [];
 
-    return bypassCache ? videos : setCached(cacheKey, videos);
+    return setCached(cacheKey, videos);
   } catch (error) {
     rethrowYouTubeError(error);
   }

@@ -10,12 +10,15 @@ export const DAY_NAMES_SHORT = [
   "Fri",
   "Sat",
 ];
+const MIN_RECOMMENDATION_COUNT = 2;
 
 export interface HeatmapCell {
   day: number; // 0..6, Sun..Sat (in the requested timezone)
   hour: number; // 0..23 (in the requested timezone)
   count: number;
   medianViews: number;
+  maxViews: number;
+  recommendationScore: number;
 }
 
 export interface HeatmapResult {
@@ -23,8 +26,13 @@ export interface HeatmapResult {
   cells: HeatmapCell[];
   /** Highest medianViews across populated cells; 0 when empty. */
   maxMedianViews: number;
-  /** Coordinates of the strongest cell, or null when empty. */
-  bestCell: { day: number; hour: number; medianViews: number } | null;
+  /** Highest maxViews across populated cells; 0 when empty. */
+  maxPeakViews: number;
+  /**
+   * Coordinates of the strongest cell by reliability-adjusted recommendation
+   * score, or null when empty.
+   */
+  bestCell: { day: number; hour: number; medianViews: number; count: number; score: number } | null;
 }
 
 function median(sorted: number[]): number {
@@ -37,10 +45,14 @@ function median(sorted: number[]): number {
 }
 
 /**
- * Bucket videos by (weekday, hour) in the given IANA `timeZone` and report
- * the median view count per bucket. Median (not mean) keeps a single viral
- * video from making an entire weekday/hour cell glow when it's actually a
- * one-off.
+ * Bucket videos by (weekday, hour) in the given IANA `timeZone` and report:
+ * - `medianViews` for robust central tendency and heatmap colour intensity
+ * - `maxViews` for peak context in tooltips/details
+ * - `recommendationScore` for ranking suggested publish slots:
+ *     `medianViews * ln(1 + count)`
+ *
+ * This balances expected performance (median) with evidence depth (count),
+ * avoiding fragile single-hit peaks from dominating recommendations.
  *
  * The default timezone is `"UTC"` so server-side calls and pre-existing
  * tests remain deterministic. Clients pass their browser's resolved zone
@@ -67,23 +79,42 @@ export function buildPublishHeatmap(
 
   const cells: HeatmapCell[] = [];
   let maxMedianViews = 0;
+  let maxPeakViews = 0;
   let bestCell: HeatmapResult["bestCell"] = null;
+  let bestScore = 0;
+  let bestEligibleCell: HeatmapResult["bestCell"] = null;
+  let bestEligibleScore = 0;
 
   for (let day = 0; day < 7; day++) {
     for (let hour = 0; hour < 24; hour++) {
       const sample = buckets.get(`${day}:${hour}`);
       const count = sample?.length ?? 0;
       let medianViews = 0;
+      let maxViews = 0;
+      let recommendationScore = 0;
       if (sample && sample.length > 0) {
-        medianViews = median([...sample].sort((a, b) => a - b));
+        const sorted = [...sample].sort((a, b) => a - b);
+        medianViews = median(sorted);
+        maxViews = sorted[sorted.length - 1];
+        recommendationScore = medianViews * Math.log1p(count);
         if (medianViews > maxMedianViews) {
           maxMedianViews = medianViews;
-          bestCell = { day, hour, medianViews };
+        }
+        if (maxViews > maxPeakViews) {
+          maxPeakViews = maxViews;
+        }
+        if (recommendationScore > bestScore) {
+          bestScore = recommendationScore;
+          bestCell = { day, hour, medianViews, count, score: recommendationScore };
+        }
+        if (count >= MIN_RECOMMENDATION_COUNT && recommendationScore > bestEligibleScore) {
+          bestEligibleScore = recommendationScore;
+          bestEligibleCell = { day, hour, medianViews, count, score: recommendationScore };
         }
       }
-      cells.push({ day, hour, count, medianViews });
+      cells.push({ day, hour, count, medianViews, maxViews, recommendationScore });
     }
   }
 
-  return { cells, maxMedianViews, bestCell };
+  return { cells, maxMedianViews, maxPeakViews, bestCell: bestEligibleCell ?? bestCell };
 }

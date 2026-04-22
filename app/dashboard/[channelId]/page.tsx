@@ -7,6 +7,7 @@ import ApiKeyMissing from "@/components/ApiKeyMissing";
 import BreakoutList from "@/components/BreakoutList";
 import ChannelHeader from "@/components/ChannelHeader";
 import ChannelHistoryTracker from "@/components/ChannelHistoryTracker";
+import DashboardInsights from "@/components/DashboardInsights";
 import ExportButton from "@/components/ExportButton";
 import GrowthSection from "@/components/GrowthSection";
 import PerformanceChart from "@/components/PerformanceChart";
@@ -122,6 +123,11 @@ async function StatsSection({ videosPromise }: { videosPromise: Promise<YouTubeV
   return <StatsCards stats={calculateStats(videos)} videos={videos} />;
 }
 
+async function InsightsSection({ videosPromise }: { videosPromise: Promise<YouTubeVideo[]> }) {
+  const videos = await videosPromise;
+  return <DashboardInsights stats={calculateStats(videos)} videos={videos} />;
+}
+
 async function BreakoutSection({
   channelId,
   videosPromise,
@@ -187,8 +193,8 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
   return (
     <main id="main" className="min-h-screen bg-zinc-950 px-4 py-6 text-zinc-100 md:px-8 md:py-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <nav className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <div className="flex flex-wrap items-center gap-2">
+        <nav className="flex flex-col items-start gap-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             <Link
               href="/lookup"
               className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900/70 px-3 py-1.5 text-zinc-200 hover:border-violet-400 hover:text-white"
@@ -210,7 +216,7 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
               Last refreshed: {lastRefreshedLabel}
             </span>
           </div>
-          <div className="flex items-center gap-3 text-zinc-400">
+          <div className="flex w-full flex-wrap items-center gap-3 text-zinc-400 sm:w-auto">
             <Link href="/studio" className="hover:text-violet-300">
               Studio
             </Link>
@@ -230,6 +236,10 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
         </nav>
         <Suspense fallback={<HeaderSkeleton />}>
           <HeaderSection channelPromise={channelPromise} videosPromise={videosPromise} />
+        </Suspense>
+
+        <Suspense fallback={null}>
+          <InsightsSection videosPromise={videosPromise} />
         </Suspense>
 
         <Suspense fallback={<StatsSkeleton />}>

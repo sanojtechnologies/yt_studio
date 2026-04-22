@@ -290,6 +290,18 @@ describe("cache-hit branches", () => {
     expect(channelsList).toHaveBeenCalledTimes(2);
   });
 
+  it("re-seeds cache after a bypassed channel fetch", async () => {
+    channelsList.mockResolvedValue({
+      data: { items: [{ id: "UCabc", snippet: {}, statistics: {} }] },
+    });
+    const { getChannelById } = await loadYoutubeLib();
+    await getChannelById(KEY, "UCabc");
+    await getChannelById(KEY, "UCabc", { bypassCache: true });
+    await getChannelById(KEY, "UCabc");
+    // Third call should hit the refreshed cache instead of the API.
+    expect(channelsList).toHaveBeenCalledTimes(2);
+  });
+
   it("bypasses handle cache when explicitly requested", async () => {
     channelsList.mockResolvedValue({
       data: { items: [{ id: "UCabc", snippet: {}, statistics: {} }] },
@@ -313,6 +325,25 @@ describe("cache-hit branches", () => {
     const { getChannelVideos } = await loadYoutubeLib();
     await getChannelVideos(KEY, "UCabc", 1);
     await getChannelVideos(KEY, "UCabc", 1, { bypassCache: true });
+    expect(channelsList).toHaveBeenCalledTimes(2);
+    expect(playlistItemsList).toHaveBeenCalledTimes(2);
+    expect(videosList).toHaveBeenCalledTimes(2);
+  });
+
+  it("re-seeds videos cache after a bypassed fetch", async () => {
+    channelsList.mockResolvedValue({
+      data: { items: [{ contentDetails: { relatedPlaylists: { uploads: "UUabc" } } }] },
+    });
+    playlistItemsList.mockResolvedValue({
+      data: { items: [{ contentDetails: { videoId: "v1" } }], nextPageToken: undefined },
+    });
+    videosList.mockResolvedValue({
+      data: { items: [{ id: "v1", snippet: {}, contentDetails: {}, statistics: {} }] },
+    });
+    const { getChannelVideos } = await loadYoutubeLib();
+    await getChannelVideos(KEY, "UCabc", 1);
+    await getChannelVideos(KEY, "UCabc", 1, { bypassCache: true });
+    await getChannelVideos(KEY, "UCabc", 1);
     expect(channelsList).toHaveBeenCalledTimes(2);
     expect(playlistItemsList).toHaveBeenCalledTimes(2);
     expect(videosList).toHaveBeenCalledTimes(2);

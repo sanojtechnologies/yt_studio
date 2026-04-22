@@ -14,10 +14,11 @@ export default function DonateLink() {
       rel="noopener noreferrer"
       referrerPolicy="no-referrer"
       aria-label="Support this project via PayPal (opens in a new tab)"
-      className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-lg backdrop-blur hover:border-violet-400 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+      className="fixed bottom-4 right-4 z-40 hidden items-center gap-2 rounded-full border border-fuchsia-400/60 bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow-xl shadow-fuchsia-500/25 transition hover:scale-[1.02] hover:from-violet-400 hover:to-fuchsia-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 sm:inline-flex"
+      title="Support this project via PayPal"
     >
-      <span aria-hidden className="text-rose-400">♥</span>
-      <span>Support</span>
+      <span aria-hidden>♥</span>
+      <span>Support This Project</span>
     </a>
   );
 }

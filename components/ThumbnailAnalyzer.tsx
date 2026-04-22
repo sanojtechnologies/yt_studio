@@ -73,7 +73,7 @@ export default function ThumbnailAnalyzer({ video, isOpen, onClose }: ThumbnailA
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/70 p-0 sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -82,7 +82,7 @@ export default function ThumbnailAnalyzer({ video, isOpen, onClose }: ThumbnailA
       <div
         ref={dialogRef}
         onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[min(90vh,48rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950 text-zinc-100 shadow-2xl"
+        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-zinc-700 bg-zinc-950 text-zinc-100 shadow-2xl sm:max-h-[min(90vh,48rem)] sm:max-w-2xl sm:rounded-2xl"
       >
         <div className="flex items-start justify-between gap-3 border-b border-zinc-800 px-5 py-4">
           <h3 id={titleId} className="text-lg font-semibold">
