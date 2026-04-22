@@ -4,6 +4,37 @@ import { ChangeEvent, FormEvent, useState } from "react";
 import { AbThumbnailResponse } from "@/lib/abThumbnailPrompt";
 
 type Mode = "upload" | "url";
+const MAX_UPLOAD_TOTAL_BYTES = 4 * 1024 * 1024;
+const JSON_CONTENT_TYPE = "application/json";
+
+async function readApiPayload(
+  response: Response
+): Promise<(AbThumbnailResponse & { error?: string }) | null> {
+  const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+  if (!contentType.includes(JSON_CONTENT_TYPE)) return null;
+  try {
+    return (await response.json()) as AbThumbnailResponse & { error?: string };
+  } catch {
+    return null;
+  }
+}
+
+async function buildRequestError(response: Response): Promise<Error> {
+  const payload = await readApiPayload(response);
+  if (payload?.error) {
+    return new Error(payload.error);
+  }
+  const text = (await response.text()).trim();
+  if (response.status === 413 || text.toLowerCase().startsWith("request entity too large")) {
+    return new Error(
+      "Upload payload too large. Keep combined image size under 4 MiB or use URL pair mode."
+    );
+  }
+  if (text.length > 0) {
+    return new Error(text.slice(0, 180));
+  }
+  return new Error(`Request failed (${response.status}).`);
+}
 
 export default function AbThumbnailLab() {
   const [mode, setMode] = useState<Mode>("upload");
@@ -31,6 +62,11 @@ export default function AbThumbnailLab() {
       let res: Response;
       if (mode === "upload") {
         if (!fileA || !fileB) throw new Error("Select two images first.");
+        if (fileA.size + fileB.size > MAX_UPLOAD_TOTAL_BYTES) {
+          throw new Error(
+            "Combined upload size exceeds 4 MiB. Compress images or switch to URL pair mode."
+          );
+        }
         const form = new FormData();
         form.append("imageA", fileA);
         form.append("imageB", fileB);
@@ -47,8 +83,9 @@ export default function AbThumbnailLab() {
           }),
         });
       }
-      const payload = (await res.json()) as AbThumbnailResponse & { error?: string };
-      if (!res.ok) throw new Error(payload.error ?? `Request failed (${res.status}).`);
+      if (!res.ok) throw await buildRequestError(res);
+      const payload = await readApiPayload(res);
+      if (!payload) throw new Error("Server returned a non-JSON response.");
       setData(payload);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not compare thumbnails.");
