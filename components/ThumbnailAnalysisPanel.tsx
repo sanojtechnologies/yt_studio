@@ -23,6 +23,12 @@ interface GeneratedVariant {
   mimeType: string;
 }
 
+interface ScoredGeneratedVariant extends GeneratedVariant {
+  readabilityScore: number;
+  curiosityScore: number;
+  overallScore: number;
+}
+
 interface ThumbnailGenerationResponse {
   variants?: GeneratedVariant[];
   error?: string;
@@ -52,7 +58,7 @@ export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAna
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
-  const [generatedVariants, setGeneratedVariants] = useState<GeneratedVariant[]>([]);
+  const [generatedVariants, setGeneratedVariants] = useState<ScoredGeneratedVariant[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState("");
 
@@ -156,7 +162,35 @@ export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAna
       if (variants.length === 0) {
         throw new Error("Image model returned no variants.");
       }
-      setGeneratedVariants(variants.slice(0, 3));
+      const scored = await Promise.all(
+        variants.slice(0, 3).map(async (variant) => {
+          const inline = dataUrlToInlineData(variant.dataUrl);
+          if (!inline) throw new Error("Generated thumbnail format is invalid.");
+          const scoreRes = await fetch("/api/thumbnail/file", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              videoId: video.id,
+              title: video.title,
+              mimeType: inline.mimeType,
+              imageBase64: inline.imageBase64,
+            }),
+          });
+          const scorePayload = (await scoreRes.json()) as ThumbnailAnalysis & { error?: string };
+          if (!scoreRes.ok) {
+            throw new Error(scorePayload.error ?? "Failed to score generated thumbnail.");
+          }
+          const overall =
+            Math.round(((scorePayload.textReadabilityScore + scorePayload.titleCuriosityGapScore) / 2) * 10) / 10;
+          return {
+            ...variant,
+            readabilityScore: scorePayload.textReadabilityScore,
+            curiosityScore: scorePayload.titleCuriosityGapScore,
+            overallScore: overall,
+          };
+        })
+      );
+      setGeneratedVariants(scored);
     } catch (err) {
       setGenerationError(
         err instanceof Error ? err.message : "Failed to generate thumbnails from suggestions."
@@ -164,7 +198,13 @@ export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAna
     } finally {
       setIsGenerating(false);
     }
-  }, [analysis, video.title]);
+  }, [analysis, video.id, video.title]);
+
+  function dataUrlToInlineData(dataUrl: string): { mimeType: string; imageBase64: string } | null {
+    const match = /^data:([^;]+);base64,(.+)$/i.exec(dataUrl);
+    if (!match) return null;
+    return { mimeType: match[1].toLowerCase(), imageBase64: match[2] };
+  }
 
   const isLoading = status === "loading";
   const cachedLabel = cachedAt ? formatRelativeTime(cachedAt, new Date()) : null;
@@ -265,7 +305,12 @@ export default function ThumbnailAnalysisPanel({ video, isActive }: ThumbnailAna
                       className="aspect-video w-full object-cover"
                     />
                     <div className="flex items-center justify-between px-2 py-1.5">
-                      <span className="text-[11px] text-zinc-400">Variant {idx + 1}</span>
+                      <div className="text-[11px] text-zinc-400">
+                        <p>Variant {idx + 1}</p>
+                        <p>Readability {variant.readabilityScore}/10</p>
+                        <p>Curiosity {variant.curiosityScore}/10</p>
+                        <p>Score {variant.overallScore}/10</p>
+                      </div>
                       <a
                         href={variant.dataUrl}
                         download={`video-${video.id}-thumb-${idx + 1}.png`}

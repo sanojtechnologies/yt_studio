@@ -5,7 +5,7 @@ import { getGeminiApiKey, getYouTubeApiKey } from "@/lib/apiKey";
 export const metadata: Metadata = {
   title: "Getting started",
   description:
-    "A five-minute beginner's guide to YT Studio Analyzer: how to get your API keys, look up a channel, read the dashboard, and find each Creator Studio tool.",
+    "The complete beginner guide for YT Analyzer: setup keys, understand dashboard insights, use Creator Studio tools, and run pre-publish checks before going live.",
 };
 
 interface StepProps {
@@ -78,8 +78,9 @@ export default function GettingStartedPage() {
             Getting started
           </h1>
           <p className="text-base text-zinc-300">
-            A five-minute walkthrough to take you from empty keys to your first analyzed channel.
-            No prior Google Cloud experience needed.
+            Start here if you are new to YT Analyzer. This guide covers setup, how to read
+            dashboard significance (not just raw numbers), and how to use Studio + pre-publish
+            workflows to improve a video before it goes live.
           </p>
           <div
             className={`rounded-xl border p-4 text-sm ${
@@ -240,22 +241,30 @@ export default function GettingStartedPage() {
           </p>
         </Step>
 
-        <Step number={6} title="Read the dashboard">
-          <p>The dashboard loads in parallel — you&apos;ll see skeletons briefly, then four sections:</p>
+        <Step number={6} title="Read the dashboard with context">
+          <p>
+            The dashboard now includes an interpretation layer so you get clear actions, not just
+            charts. You&apos;ll see these core blocks:
+          </p>
           <div className="grid gap-3 md:grid-cols-2">
             <InfoCard title="Channel header">
               Avatar, name, compact subscriber count, total views.
             </InfoCard>
-            <InfoCard title="Stats cards">
-              Avg views · engagement rate · uploads/week · best day of week (in your browser&apos;s
-              timezone).
+            <InfoCard title="Key Insights + Channel Health">
+              Top narrative insights with confidence labels, a composite channel-health score, and
+              recommended next actions.
+            </InfoCard>
+            <InfoCard title="Stats Cards (With Interpretation)">
+              Avg views · engagement rate · uploads/week · best day, each with a one-line
+              interpretation and a <Pill>?</Pill> help hint.
             </InfoCard>
             <InfoCard title="Performance chart">
               View counts across the latest 50 videos, oldest → newest.
             </InfoCard>
             <InfoCard title="Video grid + heatmap">
-              Click any thumbnail to trigger AI thumbnail analysis. The publish-time heatmap
-              below highlights the weekday × hour slot where this channel usually performs best.
+              Click any thumbnail to open the Video Analyzer modal. Heatmap now explains
+              <em> why</em> a slot is recommended and can create calendar drafts for your next two
+              uploads.
             </InfoCard>
           </div>
           <p className="text-xs text-zinc-500">
@@ -267,9 +276,10 @@ export default function GettingStartedPage() {
           </p>
           <p className="text-xs text-zinc-500">
             Growth tracking: every time you reopen a dashboard a new snapshot is appended to
-            a local history (up to 30 entries per channel, deduped within 5 minutes). Once you
-            have two or more snapshots the dashboard shows a growth chart and a delta card
-            summarising what changed between them — all stored on this device only.
+            a local history (up to 30 entries per channel, deduped for refreshes and consolidated
+            for same-day no-structure-change revisits). Once you have two or more snapshots the
+            dashboard shows a growth chart and a delta card summarising what changed — all stored
+            on this device only.
           </p>
         </Step>
 
@@ -285,6 +295,12 @@ export default function GettingStartedPage() {
             for AI tools:
           </p>
           <div className="grid gap-3 md:grid-cols-2">
+            <InfoCard title="Pre-Publish Analyzer">
+              Add unpublished draft metadata, upload a thumbnail file, then run one-click{" "}
+              <Pill>Analyze + Generate Recommendations</Pill> to analyze metadata + thumbnail,
+              generate a new metadata pack, generate 3 thumbnails, and score each generated
+              variant before publish.
+            </InfoCard>
             <InfoCard title="Title Lab">
               Generate and score alternative titles against your existing catalogue.
             </InfoCard>
@@ -297,8 +313,7 @@ export default function GettingStartedPage() {
               into topical clusters.
             </InfoCard>
             <InfoCard title="Thumbnail generator">
-              Create thumbnail variations with <em>gemini-2.5-flash-image-preview</em> for any
-              video on the channel.
+              Create thumbnail variations from prompts with your configured image model.
             </InfoCard>
             <InfoCard title="Script Doctor">
               Stream a structured outline — cold open, hook, beats, CTA, outro — tuned to a
@@ -359,8 +374,16 @@ export default function GettingStartedPage() {
             <div>
               <dt className="font-medium text-zinc-100">Heatmap strongest slot</dt>
               <dd className="text-zinc-400">
-                The (weekday, hour) cell with the highest <em>median</em> view count, so a single
-                viral video can&apos;t dominate the grid.
+                Ranked by reliability score: <Pill>medianViews × ln(1 + count)</Pill> with a
+                preference for slots that have at least 2 uploads. Peak views are still shown as
+                context.
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-zinc-100">Confidence label</dt>
+              <dd className="text-zinc-400">
+                Indicates data reliability based on sample depth and recency context. Use it to
+                decide whether to act immediately or validate first.
               </dd>
             </div>
           </dl>
@@ -400,6 +423,22 @@ export default function GettingStartedPage() {
                 limits; wait a minute and retry if you&apos;ve been hammering Studio tools.
               </p>
             </div>
+            <div>
+              <p className="font-medium text-zinc-100">Scheduled / private videos are missing</p>
+              <p className="text-zinc-400">
+                API-key mode can only access public YouTube data. Scheduled/private videos require
+                OAuth owner authorization. Use Pre-Publish Analyzer for draft checks in the
+                current BYOK mode.
+              </p>
+            </div>
+            <div>
+              <p className="font-medium text-zinc-100">Pre-Publish thumbnail upload fails</p>
+              <p className="text-zinc-400">
+                Upload an image under <Pill>2MB</Pill> in jpeg/png/webp/heic/heif format. If the
+                file is replaced, click <Pill>Save Draft</Pill> again so the latest thumbnail bytes
+                are stored.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -424,7 +463,8 @@ export default function GettingStartedPage() {
           <ul className="mt-4 space-y-2 text-sm text-zinc-300">
             <li>
               <Pill>⌘ K</Pill> / <Pill>Ctrl K</Pill> — open the command palette; search any page
-              (including this one) or any recently viewed channel.
+              (including this one), any recently viewed channel, or tools like{" "}
+              <Pill>Pre-Publish Analyzer</Pill>.
             </li>
             <li>
               <Pill>Esc</Pill> — close the palette or any open modal.

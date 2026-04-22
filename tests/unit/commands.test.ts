@@ -121,6 +121,14 @@ describe("filterCommands", () => {
     );
   });
 
+  it("surfaces the pre-publish analyzer command for draft workflows", () => {
+    const entry = STATIC_COMMANDS.find((c) => c.id === "studio.prepublish");
+    expect(entry?.href).toBe("/studio/prepublish");
+    for (const query of ["draft", "unpublished", "prepublish"]) {
+      expect(filterCommands(STATIC_COMMANDS, query).map((c) => c.id)).toContain("studio.prepublish");
+    }
+  });
+
   it("breaks score ties alphabetically", () => {
     const fixtures: Command[] = [
       { id: "a", title: "Banana", group: "Navigate" },

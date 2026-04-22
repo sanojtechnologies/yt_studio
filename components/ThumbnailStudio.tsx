@@ -5,6 +5,9 @@ import { FormEvent, useState } from "react";
 interface GeneratedVariant {
   dataUrl: string;
   mimeType: string;
+  readabilityScore?: number;
+  curiosityScore?: number;
+  overallScore?: number;
 }
 
 interface ThumbnailApiResponse {
@@ -16,6 +19,12 @@ interface ThumbnailApiResponse {
 }
 
 const JSON_CONTENT_TYPE = "application/json";
+
+function dataUrlToInlineData(dataUrl: string): { mimeType: string; imageBase64: string } | null {
+  const match = /^data:([^;]+);base64,(.+)$/i.exec(dataUrl);
+  if (!match) return null;
+  return { mimeType: match[1].toLowerCase(), imageBase64: match[2] };
+}
 
 async function readApiPayload(response: Response): Promise<ThumbnailApiResponse | null> {
   const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
@@ -67,7 +76,42 @@ export default function ThumbnailStudio() {
       }
       const payload = await readApiPayload(res);
       if (!payload) throw new Error("Server returned a non-JSON response.");
-      setResult(payload);
+      const scoredVariants = await Promise.all(
+        payload.variants.map(async (variant, index) => {
+          const inline = dataUrlToInlineData(variant.dataUrl);
+          if (!inline) return variant;
+          try {
+            const scoreRes = await fetch("/api/thumbnail/file", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                videoId: `studio-variant-${index + 1}`,
+                title: prompt.trim(),
+                mimeType: inline.mimeType,
+                imageBase64: inline.imageBase64,
+              }),
+            });
+            const scorePayload = (await scoreRes.json()) as {
+              textReadabilityScore?: number;
+              titleCuriosityGapScore?: number;
+            };
+            if (!scoreRes.ok) return variant;
+            const readability = Number(scorePayload.textReadabilityScore ?? 0);
+            const curiosity = Number(scorePayload.titleCuriosityGapScore ?? 0);
+            if (!Number.isFinite(readability) || !Number.isFinite(curiosity)) return variant;
+            const overall = Math.round(((readability + curiosity) / 2) * 10) / 10;
+            return {
+              ...variant,
+              readabilityScore: readability,
+              curiosityScore: curiosity,
+              overallScore: overall,
+            };
+          } catch {
+            return variant;
+          }
+        })
+      );
+      setResult({ ...payload, variants: scoredVariants });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not generate thumbnails.");
     } finally {
@@ -146,7 +190,21 @@ export default function ThumbnailStudio() {
                   className="aspect-video w-full object-cover"
                 />
                 <div className="flex items-center justify-between px-4 py-3">
-                  <span className="text-xs text-zinc-400">Variant {idx + 1}</span>
+                  <div className="text-[11px] text-zinc-400">
+                    <p>Variant {idx + 1}</p>
+                    <p>
+                      Readability {variant.readabilityScore ?? "N/A"}/
+                      {typeof variant.readabilityScore === "number" ? "10" : ""}
+                    </p>
+                    <p>
+                      Curiosity {variant.curiosityScore ?? "N/A"}/
+                      {typeof variant.curiosityScore === "number" ? "10" : ""}
+                    </p>
+                    <p>
+                      Overall {variant.overallScore ?? "N/A"}/
+                      {typeof variant.overallScore === "number" ? "10" : ""}
+                    </p>
+                  </div>
                   <a
                     href={variant.dataUrl}
                     download={`thumbnail-${idx + 1}.png`}

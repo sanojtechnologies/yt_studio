@@ -12,6 +12,12 @@ export const metadata: Metadata = {
 
 const TOOLS = [
   {
+    href: "/studio/prepublish",
+    title: "Pre-Publish Analyzer",
+    description:
+      "Save unpublished draft metadata and thumbnail URLs locally, then run pre-publish quality checks before going live.",
+  },
+  {
     href: "/studio/titles",
     title: "Title Lab",
     description:
