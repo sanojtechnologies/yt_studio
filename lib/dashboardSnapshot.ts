@@ -160,10 +160,9 @@ export function videosStructuralChange(
   return false;
 }
 
-function isSameUtcDay(aIso: string, bIso: string): boolean {
-  const a = new Date(aIso);
-  const b = new Date(bIso);
-  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
+function isSameUtcDayFromMs(aMs: number, bMs: number): boolean {
+  const a = new Date(aMs);
+  const b = new Date(bMs);
   return (
     a.getUTCFullYear() === b.getUTCFullYear() &&
     a.getUTCMonth() === b.getUTCMonth() &&
@@ -195,7 +194,9 @@ export function appendEntry(
   const dedupeWindowMs = opts.dedupeWindowMs ?? HISTORY_DEDUPE_WINDOW_MS;
 
   const newest = latestEntry(history);
-  const deltaMs = Date.parse(snap.savedAt) - Date.parse(newest.savedAt);
+  const newestMs = Date.parse(newest.savedAt);
+  const snapMs = Date.parse(snap.savedAt);
+  const deltaMs = snapMs - newestMs;
   const withinWindow =
     Number.isFinite(deltaMs) && deltaMs >= 0 && deltaMs < dedupeWindowMs;
   if (withinWindow && !videosMaterialChange(newest.videos, snap.videos)) {
@@ -210,7 +211,7 @@ export function appendEntry(
   if (
     Number.isFinite(deltaMs) &&
     deltaMs >= dedupeWindowMs &&
-    isSameUtcDay(newest.savedAt, snap.savedAt) &&
+    isSameUtcDayFromMs(newestMs, snapMs) &&
     !videosStructuralChange(newest.videos, snap.videos)
   ) {
     const nextEntries = [...history.entries];
