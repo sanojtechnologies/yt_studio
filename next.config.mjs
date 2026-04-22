@@ -107,6 +107,22 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.ytanalyzer.app" }],
+        destination: "https://ytanalyzer.app/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [{ type: "header", key: "x-forwarded-host", value: "www.ytanalyzer.app" }],
+        destination: "https://ytanalyzer.app/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
