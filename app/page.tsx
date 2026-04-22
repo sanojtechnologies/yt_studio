@@ -1,113 +1,108 @@
-import Image from "next/image";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { getGeminiApiKey, getYouTubeApiKey } from "@/lib/apiKey";
+
+export const metadata: Metadata = {
+  title: "YouTube Analytics & Creator Studio Tools",
+  description:
+    "YT Studio Analyzer helps creators analyze channel performance and get AI recommendations for thumbnails, titles, descriptions, and tags.",
+  alternates: { canonical: "/" },
+};
+
+interface StatusRowProps {
+  label: string;
+  configured: boolean;
+}
+
+function StatusRow({ label, configured }: StatusRowProps) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm">
+      <span className="text-zinc-100">{label}</span>
+      <span
+        className={`rounded-full px-2 py-1 text-xs ${
+          configured
+            ? "bg-emerald-500/20 text-emerald-300"
+            : "bg-rose-500/20 text-rose-300"
+        }`}
+      >
+        {configured ? "Configured" : "Missing"}
+      </span>
+    </div>
+  );
+}
 
 export default function Home() {
+  const youtube = Boolean(getYouTubeApiKey());
+  const gemini = Boolean(getGeminiApiKey());
+  const ready = youtube && gemini;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: "YT Studio Analyzer",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description:
+      "YouTube analytics and AI creator tooling for thumbnails, titles, descriptions, and tags.",
+    url: "/",
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main id="main" className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-950 px-4 py-10 text-zinc-100">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.25),transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(168,85,247,0.25),transparent_45%)]" />
+      <section className="relative w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-900/80 p-8 shadow-2xl backdrop-blur">
+        <h1 className="bg-gradient-to-r from-blue-400 via-violet-400 to-fuchsia-400 bg-clip-text text-3xl font-semibold text-transparent md:text-4xl">
+          YT Studio Analyzer
+        </h1>
+        <p className="mt-2 text-sm text-zinc-400">
+          Bring your own API keys to analyze any YouTube channel and its thumbnails.{" "}
+          <Link
+            href="/getting-started"
+            className="text-violet-300 underline underline-offset-2 hover:text-violet-200"
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+            New here? Read the quick guide.
+          </Link>
+        </p>
+
+        <div className="mt-6 space-y-2">
+          <StatusRow label="YouTube Data API v3 Key" configured={youtube} />
+          <StatusRow label="Gemini API Key" configured={gemini} />
         </div>
-      </div>
 
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <Link
+            href="/keys"
+            className="rounded-xl border border-zinc-700 bg-zinc-800/70 px-4 py-2.5 text-sm text-zinc-100 hover:border-violet-400"
+          >
+            Manage API Keys
+          </Link>
+          {ready ? (
+            <Link
+              href="/lookup"
+              className="rounded-xl bg-gradient-to-r from-blue-500 via-violet-500 to-fuchsia-500 px-4 py-2.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              Open Channel Lookup →
+            </Link>
+          ) : (
+            <p className="text-xs text-zinc-500">
+              Add and validate both keys to unlock channel lookup.
+            </p>
+          )}
+        </div>
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
+        <div className="mt-6 flex items-center gap-3 text-sm">
+          <Link href="/history" className="text-violet-300 hover:text-violet-200">
+            View recent channels
+          </Link>
+          <span aria-hidden className="text-zinc-700">•</span>
+          <Link href="/compare" className="text-violet-300 hover:text-violet-200">
+            Compare channels
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }

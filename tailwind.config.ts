@@ -1,6 +1,11 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  // Class-based dark mode so the `.dark` flag set by `app/layout.tsx`'s boot
+  // script (and toggled by `ThemeToggle` / the command palette) actually
+  // drives `dark:` variants. Default `media` mode would lock us to the OS
+  // preference and ignore the user's in-app toggle entirely.
+  darkMode: "class",
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",

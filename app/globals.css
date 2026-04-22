@@ -2,32 +2,143 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
+/* Tell the browser which palette form controls, scrollbars, and the canvas
+ * default colour should adopt. Driven by the `.dark` class on <html>, set by
+ * the inline boot script in `app/layout.tsx`. */
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: #fafafa; /* zinc-50 */
+  color: #18181b;            /* zinc-900 */
 }
+
+html.dark body {
+  background-color: #09090b; /* zinc-950 */
+  color: #f4f4f5;            /* zinc-100 */
+}
+
+/* ------------------------------------------------------------------------- *
+ * Light-mode overrides for the dark-by-default zinc utilities used across
+ * the app. The codebase ships with hard-coded `bg-zinc-950 text-zinc-100`
+ * etc. (no `dark:` variants), which works for the dark theme but leaves
+ * light mode unstyled. Rather than refactor every component to add `dark:`
+ * prefixes, we remap each utility used in the codebase to its light-palette
+ * counterpart when `<html>` does NOT have the `.dark` class.
+ *
+ * Specificity (`html:not(.dark) .x` = 0,2,1) beats the bare utility (0,1,0),
+ * so no `!important` is needed. Slash modifiers (`/70`) are escaped per
+ * Tailwind's generated class names. Keep this list in sync with any new
+ * zinc shades introduced in the codebase.
+ * ------------------------------------------------------------------------- */
+
+html:not(.dark) .bg-zinc-950        { background-color: #fafafa; }                /* zinc-50 */
+html:not(.dark) .bg-zinc-950\/70    { background-color: rgb(244 244 245 / 0.7); } /* zinc-100/70 */
+html:not(.dark) .bg-zinc-950\/50    { background-color: rgb(244 244 245 / 0.5); }
+html:not(.dark) .bg-zinc-900        { background-color: #ffffff; }
+html:not(.dark) .bg-zinc-900\/80    { background-color: rgb(255 255 255 / 0.9); }
+html:not(.dark) .bg-zinc-900\/70    { background-color: rgb(255 255 255 / 0.85); }
+html:not(.dark) .bg-zinc-800        { background-color: #e4e4e7; }                /* zinc-200 */
+html:not(.dark) .bg-zinc-800\/70    { background-color: rgb(228 228 231 / 0.7); }
+html:not(.dark) .bg-zinc-700\/40    { background-color: rgb(212 212 216 / 0.5); } /* zinc-300/50 */
+
+html:not(.dark) .hover\:bg-zinc-800:hover { background-color: #e4e4e7; }
+html:not(.dark) .hover\:bg-zinc-900:hover { background-color: #f4f4f5; }
+
+html:not(.dark) .text-zinc-50       { color: #18181b; }                           /* zinc-900 */
+html:not(.dark) .text-zinc-100      { color: #18181b; }
+html:not(.dark) .text-zinc-200      { color: #27272a; }                           /* zinc-800 */
+html:not(.dark) .text-zinc-300      { color: #3f3f46; }                           /* zinc-700 */
+html:not(.dark) .text-zinc-400      { color: #52525b; }                           /* zinc-600 */
+html:not(.dark) .text-zinc-500      { color: #71717a; }                           /* zinc-500 */
+html:not(.dark) .text-zinc-700      { color: #a1a1aa; }                           /* zinc-400 — used as muted dot dividers */
+
+html:not(.dark) .hover\:text-white:hover { color: #18181b; }
+
+html:not(.dark) .border-zinc-700    { border-color: #d4d4d8; }                    /* zinc-300 */
+html:not(.dark) .border-zinc-800    { border-color: #e4e4e7; }                    /* zinc-200 */
+html:not(.dark) .divide-zinc-800 > :not([hidden]) ~ :not([hidden]) { border-color: #e4e4e7; }
+
+html:not(.dark) .placeholder\:text-zinc-500::placeholder { color: #71717a; }
+html:not(.dark) .placeholder\:text-zinc-600::placeholder { color: #52525b; }
+
+/* ------------------------------------------------------------------------- *
+ * Accent palette overrides for light mode.
+ *
+ * Two patterns from the dark theme don't translate to a light page:
+ *   1. Tinted "soft" backgrounds (e.g. `bg-violet-500/15`) that read as a
+ *      gentle wash on near-black but vanish into white at the same alpha.
+ *      → bump alpha so the chip stays visible.
+ *   2. Pale text shades (200/300/400) that have ≥4.5:1 contrast on near-black
+ *      but <2:1 on white.
+ *      → swap to a darker shade (700) for readability.
+ *
+ * Specificity beats the bare utility (0,2,1 vs 0,1,0). Keep this list
+ * complete — every accent shade actually used in the codebase is listed.
+ * ------------------------------------------------------------------------- */
+
+/* Violet — primary accent (CTAs, badges, focus rings, links) */
+html:not(.dark) .bg-violet-500\/10 { background-color: rgb(139 92 246 / 0.18); }
+html:not(.dark) .bg-violet-500\/15 { background-color: rgb(139 92 246 / 0.22); }
+html:not(.dark) .bg-violet-500\/20 { background-color: rgb(139 92 246 / 0.25); }
+html:not(.dark) .bg-violet-500\/25 { background-color: rgb(139 92 246 / 0.28); }
+html:not(.dark) .text-violet-200,
+html:not(.dark) .text-violet-300        { color: #6d28d9; }                        /* violet-700 */
+html:not(.dark) .hover\:text-violet-200:hover,
+html:not(.dark) .hover\:text-violet-300:hover { color: #5b21b6; }                  /* violet-800 */
+
+/* Emerald — "good" / "configured" badges */
+html:not(.dark) .bg-emerald-500\/15 { background-color: rgb(16 185 129 / 0.20); }
+html:not(.dark) .bg-emerald-500\/20 { background-color: rgb(16 185 129 / 0.25); }
+html:not(.dark) .text-emerald-300,
+html:not(.dark) .text-emerald-400       { color: #047857; }                        /* emerald-700 */
+
+/* Rose — "bad" / "missing" / error badges */
+html:not(.dark) .bg-rose-500\/10 { background-color: rgb(244 63 94 / 0.16); }
+html:not(.dark) .bg-rose-500\/20 { background-color: rgb(244 63 94 / 0.22); }
+html:not(.dark) .text-rose-200,
+html:not(.dark) .text-rose-300,
+html:not(.dark) .text-rose-400          { color: #be123c; }                        /* rose-700 */
+html:not(.dark) .hover\:text-rose-300:hover { color: #9f1239; }                    /* rose-800 */
+html:not(.dark) .border-rose-800        { border-color: #fda4af; }                 /* rose-300 */
+html:not(.dark) .hover\:bg-rose-900\/30:hover { background-color: rgb(244 63 94 / 0.12); }
+
+/* Amber — "warning" badges */
+html:not(.dark) .bg-amber-500\/20 { background-color: rgb(245 158 11 / 0.25); }
+html:not(.dark) .text-amber-300         { color: #b45309; }                        /* amber-700 */
+
+/* Blue — informational chip background */
+html:not(.dark) .bg-blue-500\/15 { background-color: rgb(59 130 246 / 0.20); }
+
+/* The radial gradient on the landing/lookup pages has very low alpha and
+ * works on either palette; no override needed. */
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+/* Visible focus ring for any keyboard-focused element that hasn't opted into a
+ * custom focus style. Browsers honour the same outline in light and dark by
+ * pulling from currentColor with an offset, which keeps it readable on both
+ * the violet/dark palette and the light palette. */
+:focus-visible {
+  outline: 2px solid #a78bfa; /* violet-400 */
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Honour the OS-level reduced-motion preference. Animations and transitions
+ * collapse to nearly-zero so vestibular-sensitive users don't get parallax
+ * surprises from hover transitions or modal fades. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

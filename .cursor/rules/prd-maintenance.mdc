@@ -1,0 +1,48 @@
+---
+description: Source-of-truth PRD + tests must stay in sync with every code change
+alwaysApply: true
+---
+
+# PRD-first workflow (mandatory)
+
+`PRD.md` at the project root is the source of truth for YT Studio Analyzer.
+Read it before you plan any change, and update it before you ship one.
+
+## The triangle: PRD ↔ Tests ↔ Code
+
+For every change you land, verify all three:
+
+1. **PRD.md** — updated (add/modify/remove the relevant section AND add a row to the Change Log at the bottom).
+2. **Tests** — added, modified, or removed to match. Every PRD requirement maps to at least one test in `tests/unit/`, `tests/integration/`, or `tests/live/`.
+3. **Code** — matches both of the above.
+
+Missing any leg is a defect. If a user asks for a code change only, you still update the PRD and the tests.
+
+## Non-negotiables
+
+- Never weaken coverage thresholds in `vitest.config.ts` to make a change land. Add tests instead.
+- Every user-facing error string lives in PRD § 8 "Error Catalogue". Change the string → update the table → update the test assertion.
+- Every external dependency is justified in PRD § 11. No silent installs.
+- Test keys live only in `.env.test.local` (git-ignored). Never hardcode real keys in code or tests.
+- `lib/**` stays free of `next/*` imports (except the I/O boundary modules `lib/apiKey.ts` and `lib/clientApiKey.ts`).
+
+## Workflow
+
+1. Read `PRD.md` (or grep for the relevant feature section).
+2. Edit `PRD.md` to describe the new/changed behavior.
+3. Write/update failing tests that encode the new contract.
+4. Implement.
+5. Run `npm run test` and `npm run coverage`; both must pass.
+6. Add a Change Log row in `PRD.md` (date · short summary).
+
+## Commands
+
+| Command              | Purpose                               |
+|----------------------|---------------------------------------|
+| `npm run test:unit`  | Fast, offline feedback loop           |
+| `npm run test`       | Full suite (live auto-skips w/o keys) |
+| `npm run test:live`  | Real YouTube + Gemini smoke tests     |
+| `npm run coverage`   | Enforced thresholds, HTML report      |
+| `npm run typecheck`  | `tsc --noEmit`                        |
+
+If `PRD.md` and the code disagree, trust `PRD.md` and bring the code back in line — or, if the PRD is stale, update it first and then the tests and code in that order.
