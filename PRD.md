@@ -990,6 +990,12 @@ A lightweight outbound link that lets visitors tip the project maintainer. There
 - **Purpose**: operational traffic visibility (visits, page usage trends, referrers) without adding a custom event pipeline.
 - **Privacy note**: complements (does not replace) the app's optional custom error telemetry path (`NEXT_PUBLIC_TELEMETRY_ENDPOINT`).
 
+### 5.4 Vercel Speed Insights
+
+- **Package**: `@vercel/speed-insights`.
+- **Integration point**: mounted globally in `app/layout.tsx` via `<SpeedInsights />`.
+- **Purpose**: collect real-user performance telemetry (Core Web Vitals and route-level speed behavior) to identify UX bottlenecks post-deploy.
+
 ---
 
 ## 6. Data Contracts
@@ -1330,6 +1336,7 @@ Runtime (from `package.json`):
 | `googleapis`     | YouTube Data API v3 client                     |
 | `jspdf`          | Client-side PDF generation for Video Ideate export |
 | `@vercel/analytics` | Vercel Web Analytics client for site usage visibility |
+| `@vercel/speed-insights` | Vercel Speed Insights client for real-user performance telemetry |
 | `recharts`       | Performance chart                              |
 
 Dev:
@@ -1362,6 +1369,7 @@ Any new dependency MUST be justified here (why a built-in / existing utility was
 
 | Date       | Author        | Change                                                                                 |
 |------------|---------------|----------------------------------------------------------------------------------------|
+| 2026-04-26 | Vercel Speed Insights integration | Added Vercel Speed Insights globally by mounting `<SpeedInsights />` in `app/layout.tsx` and adding runtime dependency `@vercel/speed-insights` to capture real-user performance metrics across routes. Updated External Integrations + Dependencies sections accordingly. |
 | 2026-04-26 | Vercel Web Analytics integration | Added Vercel Web Analytics globally by mounting `<Analytics />` in `app/layout.tsx` and adding runtime dependency `@vercel/analytics` for lightweight website usage visibility. Updated External Integrations + Dependencies sections accordingly. |
 | 2026-04-26 | Getting-started readability refresh | Reworked Step 6 dashboard notes into a structured mini-section (`Also New On The Dashboard`) with concise bullets for Title Trends decision signals, performance-chart title tooltips, local snapshot caching, and growth-history behavior. Improves scanability without adding new onboarding steps. |
 | 2026-04-26 | Getting-started readability polish | Refined Step 6 (“Read the dashboard with context”) for clearer scanning: removed the extra dashboard card that made the grid feel uneven, and moved Title Trends decision-grade + performance-tooltip notes into concise supporting text below the core blocks. |

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import CommandPalette from "@/components/CommandPalette";
 import DonateLink from "@/components/DonateLink";
 import MobileFooterCta from "@/components/MobileFooterCta";
@@ -102,6 +103,7 @@ export default function RootLayout({
         <DonateLink />
         <CommandPalette />
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
