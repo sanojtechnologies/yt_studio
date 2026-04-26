@@ -983,6 +983,13 @@ A lightweight outbound link that lets visitors tip the project maintainer. There
 - **Response schema**: ALWAYS pass `responseSchema` for structured calls. Without it the model occasionally omits required fields.
 - **Validation endpoint**: `https://generativelanguage.googleapis.com/v1beta/models?key=<key>` — cheap unauthenticated probe.
 
+### 5.3 Vercel Web Analytics
+
+- **Package**: `@vercel/analytics`.
+- **Integration point**: mounted globally in `app/layout.tsx` via `<Analytics />` so pageview analytics run across all routes.
+- **Purpose**: operational traffic visibility (visits, page usage trends, referrers) without adding a custom event pipeline.
+- **Privacy note**: complements (does not replace) the app's optional custom error telemetry path (`NEXT_PUBLIC_TELEMETRY_ENDPOINT`).
+
 ---
 
 ## 6. Data Contracts
@@ -1322,6 +1329,7 @@ Runtime (from `package.json`):
 | `@google/genai`  | Gemini client (text + vision + streaming)      |
 | `googleapis`     | YouTube Data API v3 client                     |
 | `jspdf`          | Client-side PDF generation for Video Ideate export |
+| `@vercel/analytics` | Vercel Web Analytics client for site usage visibility |
 | `recharts`       | Performance chart                              |
 
 Dev:
@@ -1354,6 +1362,7 @@ Any new dependency MUST be justified here (why a built-in / existing utility was
 
 | Date       | Author        | Change                                                                                 |
 |------------|---------------|----------------------------------------------------------------------------------------|
+| 2026-04-26 | Vercel Web Analytics integration | Added Vercel Web Analytics globally by mounting `<Analytics />` in `app/layout.tsx` and adding runtime dependency `@vercel/analytics` for lightweight website usage visibility. Updated External Integrations + Dependencies sections accordingly. |
 | 2026-04-26 | Getting-started readability refresh | Reworked Step 6 dashboard notes into a structured mini-section (`Also New On The Dashboard`) with concise bullets for Title Trends decision signals, performance-chart title tooltips, local snapshot caching, and growth-history behavior. Improves scanability without adding new onboarding steps. |
 | 2026-04-26 | Getting-started readability polish | Refined Step 6 (“Read the dashboard with context”) for clearer scanning: removed the extra dashboard card that made the grid feel uneven, and moved Title Trends decision-grade + performance-tooltip notes into concise supporting text below the core blocks. |
 | 2026-04-26 | Getting-started parity pass | Performed a concise parity refresh of `/getting-started` so it reflects current behavior: Performance chart tooltip includes video title context, Step 6 now explicitly calls out decision-grade `Title trends` outputs (lift, novelty guard, format split), and Step 7 documents `Video Ideate` PDF export (`Download As PDF`). |
