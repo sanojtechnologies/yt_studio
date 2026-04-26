@@ -13,6 +13,7 @@ import {
 interface ChartPoint {
   index: number;
   views: number;
+  title: string;
 }
 
 interface PerformanceChartProps {
@@ -81,7 +82,11 @@ export default function PerformanceChart({ data }: PerformanceChartProps) {
             <Tooltip
               contentStyle={{ backgroundColor: "#09090b", borderColor: "#3f3f46" }}
               formatter={(value) => [compact(Number(value ?? 0)), "Views"]}
-              labelFormatter={(label) => `Video #${label}`}
+              labelFormatter={(label, payload) => {
+                const point = payload?.[0]?.payload as ChartPoint | undefined;
+                const title = point?.title?.trim();
+                return title ? `Video #${label}: ${title}` : `Video #${label}`;
+              }}
             />
             <Line type="monotone" dataKey="views" stroke="#8b5cf6" strokeWidth={2} dot={false} />
           </LineChart>

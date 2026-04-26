@@ -853,9 +853,14 @@ Four dashboard features driven by a v2 `DashboardHistory` snapshot store. All st
 #### 4.15.5 Title n-gram / keyword frequency (A4)
 
 - `lib/ngrams.ts` → `extractNgrams(videos, { n, stopwords?, minCount?, limit? })` returns `NgramEntry[]` ranked by `weightedViews` desc (sum of view counts of titles containing the phrase, one credit per title), tie-break by `count`, then lexicographically. Defaults: `minCount = 2`, `limit = 20`, built-in English stopword list (`DEFAULT_STOPWORDS`). Unigram mode filters stopwords; higher-order n-grams do not.
-- `components/TitleTrends.tsx` renders top 12 unigrams + top 12 bigrams as pills with hover-revealed count + weighted views. Placed on the dashboard next to the heatmap.
+- `lib/titleTrendsDecision.ts` computes decision-grade title guidance from the same title corpus: winner lift vs channel median, novelty/reuse risk guardrail, and short-vs-long format winner split.
+- `components/TitleTrends.tsx` renders top 12 unigrams + top 12 bigrams as pills with hover-revealed count + weighted views, plus decision-grade overlays:
+  - `Lift vs channel median` (winner phrase median vs channel median)
+  - `Novelty Guard` (`Low`/`Medium`/`High` reuse risk + mitigation suggestion)
+  - `Format Split Winners` (best phrase separately for Shorts vs Long-form)
+  - Existing action card (`Apply This Title Pattern`) remains the execution CTA.
 
-**Tests**: `tests/unit/ngrams.test.ts`.
+**Tests**: `tests/unit/ngrams.test.ts` + `tests/unit/titleTrendsDecision.test.ts`.
 
 #### 4.15.6 Idea Opportunity Engine
 
@@ -1349,6 +1354,11 @@ Any new dependency MUST be justified here (why a built-in / existing utility was
 
 | Date       | Author        | Change                                                                                 |
 |------------|---------------|----------------------------------------------------------------------------------------|
+| 2026-04-26 | Getting-started readability refresh | Reworked Step 6 dashboard notes into a structured mini-section (`Also New On The Dashboard`) with concise bullets for Title Trends decision signals, performance-chart title tooltips, local snapshot caching, and growth-history behavior. Improves scanability without adding new onboarding steps. |
+| 2026-04-26 | Getting-started readability polish | Refined Step 6 (“Read the dashboard with context”) for clearer scanning: removed the extra dashboard card that made the grid feel uneven, and moved Title Trends decision-grade + performance-tooltip notes into concise supporting text below the core blocks. |
+| 2026-04-26 | Getting-started parity pass | Performed a concise parity refresh of `/getting-started` so it reflects current behavior: Performance chart tooltip includes video title context, Step 6 now explicitly calls out decision-grade `Title trends` outputs (lift, novelty guard, format split), and Step 7 documents `Video Ideate` PDF export (`Download As PDF`). |
+| 2026-04-26 | Getting-started glossary expansion | Expanded `/getting-started` Metric Glossary with decision-grade Title Trends terms: `Title trend lift vs median`, `Novelty guard (reuse risk)`, and `Format split winners`, so users can interpret the new title-decision signals consistently. |
+| 2026-04-26 | Title trends decision-grade upgrade | Upgraded dashboard `TitleTrends` from descriptive phrase listing to decision-grade guidance by adding winner lift vs channel median, novelty/reuse risk guardrails, and format-split winners (Shorts vs Long-form). Added deterministic helper `lib/titleTrendsDecision.ts` and unit coverage in `tests/unit/titleTrendsDecision.test.ts`. |
 | 2026-04-26 | Getting-started dashboard update | Updated `/getting-started` Step 6 ("Read the dashboard with context") to explicitly document the new `Idea Opportunity Engine` block, including why-now evidence, best format/window guidance, and one-click data-grounded idea generation. |
 | 2026-04-26 | Idea engine timezone alignment | Updated `DashboardIdeaEngine` to always compute and display `Best Publish Window` in browser-local timezone (with timezone label), matching the dashboard heatmap behavior and avoiding UTC ambiguity. |
 | 2026-04-26 | Dashboard idea engine | Added a new single-widget dashboard feature, `Idea Opportunity Engine`, that converts current channel signals into an actionable next-content direction with confidence and evidence bullets. Added click-triggered inline ideation (`Generate 3 Data-Grounded Ideas`) via `/api/studio/ideate`, deep-link handoff to `/studio/ideate?keywords=...`, deterministic helper logic in `lib/dashboardIdeaEngine.ts`, and unit coverage in `tests/unit/dashboardIdeaEngine.test.ts`. |

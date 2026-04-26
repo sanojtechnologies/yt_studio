@@ -150,7 +150,7 @@ async function ChartSection({ videosPromise }: { videosPromise: Promise<YouTubeV
   const chartData = videos
     .slice()
     .reverse()
-    .map((video, index) => ({ index: index + 1, views: video.viewCount }));
+    .map((video, index) => ({ index: index + 1, views: video.viewCount, title: video.title }));
 
   return <PerformanceChart data={chartData} />;
 }

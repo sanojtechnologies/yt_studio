@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import InfoHint from "@/components/InfoHint";
 import { extractNgrams, NgramEntry } from "@/lib/ngrams";
+import { buildTitleTrendsDecision } from "@/lib/titleTrendsDecision";
 import { YouTubeVideo } from "@/types/youtube";
 
 interface TitleTrendsProps {
@@ -27,6 +28,7 @@ export default function TitleTrends({ videos }: TitleTrendsProps) {
   );
   const topKeyword = unigrams[0];
   const topPhrase = bigrams[0];
+  const decision = useMemo(() => buildTitleTrendsDecision(videos), [videos]);
   const titleTemplate = topPhrase
     ? `Use "${toTitleCase(topPhrase.phrase)}" as your opening phrase and append the specific outcome.`
     : topKeyword
@@ -65,6 +67,13 @@ export default function TitleTrends({ videos }: TitleTrendsProps) {
                 ? `"${toTitleCase(topKeyword.phrase)}" is your strongest recurring keyword.`
                 : "No clear winner yet."}
           </p>
+          <p className="mt-2 text-xs text-zinc-400">
+            Lift vs channel median:{" "}
+            <span className="text-zinc-200">
+              {decision.liftVsMedian >= 0 ? "+" : ""}
+              {(decision.liftVsMedian * 100).toFixed(0)}%
+            </span>
+          </p>
         </article>
         <article className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
           <div className="flex items-center justify-between gap-2">
@@ -89,6 +98,32 @@ export default function TitleTrends({ videos }: TitleTrendsProps) {
               Apply This Title Pattern
             </Link>
           </div>
+        </article>
+      </div>
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <article className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+          <p className="text-xs text-zinc-500">Novelty Guard</p>
+          <p className="mt-1 text-sm text-zinc-200">
+            Reuse risk: <span className="text-zinc-100">{decision.reuseRisk}</span>
+          </p>
+          <p className="mt-1 text-xs text-zinc-400">{decision.noveltySuggestion}</p>
+        </article>
+        <article className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+          <p className="text-xs text-zinc-500">Format Split Winners</p>
+          <p className="mt-1 text-xs text-zinc-300">
+            Shorts:{" "}
+            <span className="text-zinc-100">
+              {decision.formatWinners[0]?.phrase ?? "Not enough signal"}
+            </span>{" "}
+            · {compact(decision.formatWinners[0]?.weightedViews ?? 0)} weighted views
+          </p>
+          <p className="mt-1 text-xs text-zinc-300">
+            Long-form:{" "}
+            <span className="text-zinc-100">
+              {decision.formatWinners[1]?.phrase ?? "Not enough signal"}
+            </span>{" "}
+            · {compact(decision.formatWinners[1]?.weightedViews ?? 0)} weighted views
+          </p>
         </article>
       </div>
       <div className="mt-4 grid gap-4 md:grid-cols-2">

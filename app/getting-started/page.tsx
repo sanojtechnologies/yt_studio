@@ -272,20 +272,31 @@ export default function GettingStartedPage() {
               uploads.
             </InfoCard>
           </div>
-          <p className="text-xs text-zinc-500">
-            The dashboard snapshot is also cached in your browser (IndexedDB) so the{" "}
-            <Link href="/history" className="underline hover:text-violet-200">
-              Recent channels
-            </Link>{" "}
-            page can show summary stats for anything you&apos;ve viewed before.
-          </p>
-          <p className="text-xs text-zinc-500">
-            Growth tracking: every time you reopen a dashboard a new snapshot is appended to
-            a local history (up to 30 entries per channel, deduped for refreshes and consolidated
-            for same-day no-structure-change revisits). Once you have two or more snapshots the
-            dashboard shows a growth chart and a delta card summarising what changed — all stored
-            on this device only.
-          </p>
+          <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+            <h3 className="text-sm font-semibold text-zinc-100">Also New On The Dashboard</h3>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-zinc-400">
+              <li>
+                <strong className="text-zinc-200">Title trends</strong> now includes decision-grade
+                signals: lift vs median, novelty guard (reuse risk), and separate phrase winners
+                for Shorts vs Long-form.
+              </li>
+              <li>
+                <strong className="text-zinc-200">Performance chart</strong> tooltips now show both
+                video index and exact video title.
+              </li>
+              <li>
+                Dashboard snapshots are cached locally (IndexedDB), so{" "}
+                <Link href="/history" className="underline hover:text-violet-200">
+                  Recent channels
+                </Link>{" "}
+                can show summary stats for channels you&apos;ve already viewed.
+              </li>
+              <li>
+                Growth tracking appends local snapshots over time (deduped and consolidated), then
+                unlocks the growth chart + delta card once enough history exists.
+              </li>
+            </ul>
+          </section>
         </Step>
 
         <Step number={7} title="Explore Creator Studio (optional)">
@@ -302,7 +313,8 @@ export default function GettingStartedPage() {
           <div className="grid gap-3 md:grid-cols-2">
             <InfoCard title="Video Ideate">
               Enter niche keywords and generate last-30-days, data-grounded idea cards with
-              evidence-backed “why now” reasoning and confidence.
+              evidence-backed “why now” reasoning and confidence. Export the generated bundle with{" "}
+              <Pill>Download As PDF</Pill> for future reference.
             </InfoCard>
             <InfoCard title="Pre-Publish Analyzer">
               Add unpublished draft metadata, upload a thumbnail file, then run one-click{" "}
@@ -393,6 +405,28 @@ export default function GettingStartedPage() {
               <dd className="text-zinc-400">
                 Indicates data reliability based on sample depth and recency context. Use it to
                 decide whether to act immediately or validate first.
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-zinc-100">Title trend lift vs median</dt>
+              <dd className="text-zinc-400">
+                How much the winning repeated title pattern outperforms (or underperforms) the
+                channel&apos;s median view level. Positive lift means the pattern is directionally
+                stronger than baseline.
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-zinc-100">Novelty guard (reuse risk)</dt>
+              <dd className="text-zinc-400">
+                Saturation signal for overusing the same title phrase. <Pill>Low / Medium / High</Pill>{" "}
+                helps you decide when to keep the winner vs rotate qualifiers to avoid fatigue.
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-zinc-100">Format split winners</dt>
+              <dd className="text-zinc-400">
+                Separate strongest repeated phrase for Shorts and Long-form so title strategy can
+                match format intent instead of using one blended pattern.
               </dd>
             </div>
           </dl>
