@@ -12,6 +12,12 @@ export const metadata: Metadata = {
 
 const TOOLS = [
   {
+    href: "/studio/ideate",
+    title: "Video Ideate",
+    description:
+      "Generate data-grounded video ideas from niche keywords using last-30-days YouTube performance signals.",
+  },
+  {
     href: "/studio/prepublish",
     title: "Pre-Publish Analyzer",
     description:

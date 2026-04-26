@@ -129,6 +129,14 @@ describe("filterCommands", () => {
     }
   });
 
+  it("surfaces the video ideate command for niche trend workflows", () => {
+    const entry = STATIC_COMMANDS.find((c) => c.id === "studio.ideate");
+    expect(entry?.href).toBe("/studio/ideate");
+    for (const query of ["ideate", "idea", "niche", "trending"]) {
+      expect(filterCommands(STATIC_COMMANDS, query).map((c) => c.id)).toContain("studio.ideate");
+    }
+  });
+
   it("breaks score ties alphabetically", () => {
     const fixtures: Command[] = [
       { id: "a", title: "Banana", group: "Navigate" },

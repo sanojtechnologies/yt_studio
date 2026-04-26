@@ -33,6 +33,7 @@ export const STATIC_COMMANDS: Command[] = [
   { id: "nav.compare", title: "Compare channels", group: "Navigate", href: "/compare", keywords: ["versus", "vs", "side", "diff"] },
   { id: "nav.history", title: "Recent channels", group: "Navigate", href: "/history", keywords: ["history", "previous", "saved"] },
   { id: "nav.studio", title: "Creator Studio", group: "Studio", href: "/studio", keywords: ["ai", "tools"] },
+  { id: "studio.ideate", title: "Video Ideate", group: "Studio", href: "/studio/ideate", keywords: ["ideate", "idea", "trending", "niche", "keyword", "youtube ideas"] },
   { id: "studio.prepublish", title: "Pre-publish analyzer", group: "Studio", href: "/studio/prepublish", keywords: ["prepublish", "draft", "unpublished", "metadata", "thumbnail", "before publish"] },
   { id: "studio.titles", title: "Title Lab", group: "Studio", href: "/studio/titles", keywords: ["title", "headline", "name"] },
   { id: "studio.hook", title: "Hooks, description, chapters", group: "Studio", href: "/studio/hook", keywords: ["hook", "description", "chapters", "intro", "open"] },

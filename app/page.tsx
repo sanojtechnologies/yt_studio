@@ -101,6 +101,10 @@ export default function Home() {
           <Link href="/compare" className="text-violet-300 hover:text-violet-200">
             Compare channels
           </Link>
+          <span aria-hidden className="text-zinc-700">•</span>
+          <Link href="/studio" className="text-violet-300 hover:text-violet-200">
+            Creator Studio
+          </Link>
         </div>
       </section>
     </main>

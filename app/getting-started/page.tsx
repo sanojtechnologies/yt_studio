@@ -254,6 +254,11 @@ export default function GettingStartedPage() {
               Top narrative insights with confidence labels, a composite channel-health score, and
               recommended next actions.
             </InfoCard>
+            <InfoCard title="Idea Opportunity Engine">
+              A focused “what to make next” widget that synthesizes current channel signals into a
+              top opportunity angle, why-now evidence, best format, and best publish window (in
+              your browser-local timezone), with one-click generation of 3 data-grounded ideas.
+            </InfoCard>
             <InfoCard title="Stats Cards (With Interpretation)">
               Avg views · engagement rate · uploads/week · best day, each with a one-line
               interpretation and a <Pill>?</Pill> help hint.
@@ -295,6 +300,10 @@ export default function GettingStartedPage() {
             for AI tools:
           </p>
           <div className="grid gap-3 md:grid-cols-2">
+            <InfoCard title="Video Ideate">
+              Enter niche keywords and generate last-30-days, data-grounded idea cards with
+              evidence-backed “why now” reasoning and confidence.
+            </InfoCard>
             <InfoCard title="Pre-Publish Analyzer">
               Add unpublished draft metadata, upload a thumbnail file, then run one-click{" "}
               <Pill>Analyze + Generate Recommendations</Pill> to analyze metadata + thumbnail,

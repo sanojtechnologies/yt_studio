@@ -8,6 +8,7 @@ import BreakoutList from "@/components/BreakoutList";
 import ChannelHeader from "@/components/ChannelHeader";
 import ChannelHistoryTracker from "@/components/ChannelHistoryTracker";
 import DashboardInsights from "@/components/DashboardInsights";
+import DashboardIdeaEngine from "@/components/DashboardIdeaEngine";
 import ExportButton from "@/components/ExportButton";
 import GrowthSection from "@/components/GrowthSection";
 import PerformanceChart from "@/components/PerformanceChart";
@@ -128,6 +129,11 @@ async function InsightsSection({ videosPromise }: { videosPromise: Promise<YouTu
   return <DashboardInsights stats={calculateStats(videos)} videos={videos} />;
 }
 
+async function IdeaEngineSection({ videosPromise }: { videosPromise: Promise<YouTubeVideo[]> }) {
+  const videos = await videosPromise;
+  return <DashboardIdeaEngine stats={calculateStats(videos)} videos={videos} />;
+}
+
 async function BreakoutSection({
   channelId,
   videosPromise,
@@ -240,6 +246,10 @@ export default async function DashboardPage({ params, searchParams }: DashboardP
 
         <Suspense fallback={null}>
           <InsightsSection videosPromise={videosPromise} />
+        </Suspense>
+
+        <Suspense fallback={null}>
+          <IdeaEngineSection videosPromise={videosPromise} />
         </Suspense>
 
         <Suspense fallback={<StatsSkeleton />}>

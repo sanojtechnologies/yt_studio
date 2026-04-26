@@ -216,7 +216,8 @@ Every feature below MUST be backed by at least one test. The "Tests" line is the
 - R3 The "Open Channel Lookup" CTA (linking to `/lookup`) is **only visible when both keys are configured**. Otherwise show the helper copy "Add and validate both keys to unlock channel lookup."
 - R4 A "Manage API Keys" link (to `/keys`) is always visible.
 - R5 A "View recent channels" link (to `/history`) is always visible.
-- R6 A "New here? Read the quick guide" link points to `/getting-started` (see § 4.14) from the hero copy so first-time users can bail out to the walkthrough before hitting the keys page.
+- R6 A "Compare channels" link (to `/compare`) and a "Creator Studio" link (to `/studio`) are always visible in the landing quick-links row.
+- R7 A "New here? Read the quick guide" link points to `/getting-started` (see § 4.14) from the hero copy so first-time users can bail out to the walkthrough before hitting the keys page.
 
 **Tests**: Manual verification; copy strings are asserted via the landing integration flow on CI when a UI test layer is added. (Currently uncovered by automated tests — see § 9.5 Known Gaps.)
 
@@ -856,6 +857,22 @@ Four dashboard features driven by a v2 `DashboardHistory` snapshot store. All st
 
 **Tests**: `tests/unit/ngrams.test.ts`.
 
+#### 4.15.6 Idea Opportunity Engine
+
+- `lib/dashboardIdeaEngine.ts` adds deterministic, dashboard-local idea synthesis from existing signals (no automatic Gemini spend): title n-gram winners, format medians, cadence/engagement context, and heatmap strongest slot.
+- `components/DashboardIdeaEngine.tsx` renders one high-impact dashboard widget answering "what to make next, and why now":
+  - `Top Opportunity Angle`
+  - `Why Now` evidence bullets
+  - `Best Format` + confidence
+  - `Best Publish Window` in the viewer's browser-local timezone (same timezone posture as heatmap)
+- Widget actions:
+  - `Generate 3 Data-Grounded Ideas` triggers a click-only call to `POST /api/studio/ideate` using computed seed keywords (`ideaCount = 3`).
+  - `Open Video Ideate` deep-links to `/studio/ideate?keywords=<seed>` for full ideation flow.
+- Sparse-signal behavior is explicit: low confidence, conservative opportunity framing, and guidance to validate with small tests.
+- Dashboard composition: widget is inserted after `Key Insights` in `app/dashboard/[channelId]/page.tsx`.
+
+**Tests**: `tests/unit/dashboardIdeaEngine.test.ts`.
+
 ---
 
 ### 4.16 Creator Studio II (Phase 4 Bucket B)
@@ -926,13 +943,26 @@ A lightweight outbound link that lets visitors tip the project maintainer. There
 
 ---
 
+#### 4.16.7 Video Ideate — `/studio/ideate` (V1)
+
+- `lib/videoIdeate.ts` adds a YouTube-only evidence pipeline for last-30-days niche ideation. Inputs are user-provided keyword seeds; output is deterministic evidence (`topPhrases`, keyword momentum, engagement-weighted performance, format mix, top videos, and compact opportunity signals).
+- `fetchVideosForIdeation(...)` uses YouTube `search.list` per seed (bounded) + `videos.list` detail hydration, then `buildVideoIdeateEvidence(...)` computes ranked trend signals before any Gemini synthesis.
+- `lib/videoIdeatePrompt.ts` defines strict contract + schema (`VIDEO_IDEATE_SCHEMA`) for structured idea output: `title`, `hook`, `whyNow`, `keywordAngle`, `format`, `confidence`, `supportingSignals[]`, plus top-level `summary`.
+- `POST /api/studio/ideate` enforces BYOK for YouTube + Gemini, validates seeds/count bounds, builds evidence, requests schema-constrained Gemini synthesis, and returns `{ summary, ideas[], evidence }`. Error handling follows existing studio conventions (`400` body validation, `401` missing keys, `502` upstream/model failures).
+- `components/VideoIdeate.tsx` + `app/studio/ideate/page.tsx` deliver the Studio UX: keyword-seed input, bounded idea count, loading/empty/error states, evidence-first result cards with confidence + why-now rationale, and `Download As PDF` for exporting the current ideation result bundle (summary + evidence + ideas) for offline reference.
+- Discoverability: Studio index card + command palette entry `studio.ideate`; Getting Started Step 7 now includes Video Ideate.
+
+**Tests**: `tests/unit/videoIdeate.test.ts` + `tests/unit/videoIdeatePrompt.test.ts` + `tests/unit/videoIdeateExport.test.ts` + `tests/integration/api-studio-ideate.test.ts` + command discoverability pin in `tests/unit/commands.test.ts`.
+
+---
+
 ## 5. External Integrations
 
 ### 5.1 YouTube Data API v3
 
 - **Access**: user-supplied API key (no OAuth).
 - **Scopes used**: `channels.list`, `playlistItems.list`, `videos.list`, `i18nLanguages.list` (validation only).
-- **Strategy**: avoid `search.list` (100 quota units) by using the uploads-playlist pattern (`channels.list(contentDetails) → playlistItems.list → videos.list`, totalling ≤3 units for 50 videos).
+- **Strategy**: dashboard/channel analytics avoid `search.list` (100 quota units) by using the uploads-playlist pattern (`channels.list(contentDetails) → playlistItems.list → videos.list`, totalling ≤3 units for 50 videos). `Video Ideate` is the explicit exception: it uses bounded `search.list` keyword sampling for niche trend discovery across channels.
 - **Rate-limit handling**: 403 with a reason containing `quota`/`rateLimit`/`dailyLimit`/`userRateLimit` → `YouTubeQuotaExceededError` → HTTP 429 to the caller.
 - **Invalid key handling**: 400 with message containing `api key not valid` OR reason `keyInvalid` → `YouTubeInvalidApiKeyError` → HTTP 400.
 
@@ -1183,6 +1213,12 @@ All user-facing error strings shipped by the app. Changing one here requires upd
 | `"Could not resolve enough channels for gap analysis."`                     | `/api/compare/gap`        | 404    | `api-compare-gap.test.ts`                  |
 | `"Add your Gemini API key in the API Keys panel to ideate for clusters."`   | `/api/studio/clusters/ideas` | 401 | `api-studio-cluster-ideas.test.ts`         |
 | `"label is required"` / `"label is too long"` / `"sampleTitles must be an array"` / `"sampleTitles must not be empty"` / `"sampleTitles must be strings"` / `"medianViews must be a non-negative number"` | `/api/studio/clusters/ideas` | 400 | `api-studio-cluster-ideas.test.ts` |
+| `"Add your YouTube API key in the API Keys panel to generate data-grounded ideas."` | `/api/studio/ideate` | 401 | `api-studio-ideate.test.ts` |
+| `"Add your Gemini API key in the API Keys panel to generate data-grounded ideas."` | `/api/studio/ideate` | 401 | `api-studio-ideate.test.ts` |
+| `"keywords must include at least one seed term"` / `"Invalid JSON body"` | `/api/studio/ideate` | 400 | `api-studio-ideate.test.ts` |
+| `"YouTube fetch failed"` / `"Gemini call failed"` / `"Gemini returned an empty response"` / `"Gemini did not return valid JSON"` | `/api/studio/ideate` | 502 | `api-studio-ideate.test.ts` |
+| `"Failed to generate PDF. Try again."` | `/studio/ideate` client export action | client | `components/VideoIdeate.tsx` |
+| `"Failed to generate ideas. Try again."` | dashboard idea widget client action | client | `components/DashboardIdeaEngine.tsx` |
 
 ---
 
@@ -1198,8 +1234,9 @@ Pure logic, no network. Must stay fast (< 1s total).
 - Phase 1: `csv.test.ts` · `outliers.test.ts` · `heatmap.test.ts` · `compareStats.test.ts` · `telemetry.test.ts`.
 - Phase 2 (Studio): `titleLabPrompt.test.ts` · `hookPrompt.test.ts` · `cluster.test.ts` · `embeddings.test.ts` · `thumbnailGenPrompt.test.ts`.
 - Phase 3: `dashboardSnapshot.test.ts` · `commands.test.ts`.
-- Phase 4 (Longitudinal): `timeSeries.test.ts` · `breakout.test.ts` · `duration.test.ts` · `ngrams.test.ts`. `dashboardSnapshot.test.ts` extended with v1→v2 migration + dedupe + cap cases.
+- Phase 4 (Longitudinal): `timeSeries.test.ts` · `breakout.test.ts` · `duration.test.ts` · `ngrams.test.ts` · `dashboardIdeaEngine.test.ts`. `dashboardSnapshot.test.ts` extended with v1→v2 migration + dedupe + cap cases.
 - Phase 4 (Studio II): `scriptPrompt.test.ts` · `abTitlePrompt.test.ts` · `abThumbnailPrompt.test.ts` · `compareGapPrompt.test.ts` · `clusterIdeasPrompt.test.ts`.
+- Video Ideate V1: `videoIdeate.test.ts` · `videoIdeatePrompt.test.ts`.
 - Production hardening: `donate.test.ts` (resolver + env-override round trip). Palette discoverability for `settings.donate` is pinned in `commands.test.ts`.
 
 ### 9.2 Integration (`tests/integration/`)
@@ -1210,6 +1247,7 @@ Route handlers end-to-end with `@/lib/*` and global `fetch` mocked.
 - Phase 1: `api-compare.test.ts`.
 - Phase 2 (Studio): `api-studio-titles.test.ts` · `api-studio-hook.test.ts` · `api-studio-clusters.test.ts` · `api-studio-thumbnails.test.ts`.
 - Phase 4: `api-studio-script.test.ts` (NDJSON streamed meta/chunk/final/error) · `api-studio-abtitle.test.ts` · `api-studio-abthumbnail.test.ts` (multipart + URL inputs, plus missing `content-type` branch) · `api-compare-gap.test.ts` · `api-studio-cluster-ideas.test.ts`.
+- Video Ideate V1: `api-studio-ideate.test.ts`.
 
 ### 9.3 Live (`tests/live/`)
 
@@ -1278,6 +1316,7 @@ Runtime (from `package.json`):
 | `react`/`-dom`   | UI                                             |
 | `@google/genai`  | Gemini client (text + vision + streaming)      |
 | `googleapis`     | YouTube Data API v3 client                     |
+| `jspdf`          | Client-side PDF generation for Video Ideate export |
 | `recharts`       | Performance chart                              |
 
 Dev:
@@ -1310,6 +1349,12 @@ Any new dependency MUST be justified here (why a built-in / existing utility was
 
 | Date       | Author        | Change                                                                                 |
 |------------|---------------|----------------------------------------------------------------------------------------|
+| 2026-04-26 | Getting-started dashboard update | Updated `/getting-started` Step 6 ("Read the dashboard with context") to explicitly document the new `Idea Opportunity Engine` block, including why-now evidence, best format/window guidance, and one-click data-grounded idea generation. |
+| 2026-04-26 | Idea engine timezone alignment | Updated `DashboardIdeaEngine` to always compute and display `Best Publish Window` in browser-local timezone (with timezone label), matching the dashboard heatmap behavior and avoiding UTC ambiguity. |
+| 2026-04-26 | Dashboard idea engine | Added a new single-widget dashboard feature, `Idea Opportunity Engine`, that converts current channel signals into an actionable next-content direction with confidence and evidence bullets. Added click-triggered inline ideation (`Generate 3 Data-Grounded Ideas`) via `/api/studio/ideate`, deep-link handoff to `/studio/ideate?keywords=...`, deterministic helper logic in `lib/dashboardIdeaEngine.ts`, and unit coverage in `tests/unit/dashboardIdeaEngine.test.ts`. |
+| 2026-04-26 | Landing quick-link update | Added a direct `Creator Studio` quick link to the landing page (`/`) alongside `View recent channels` and `Compare channels` for faster access to Studio tools after key setup. |
+| 2026-04-26 | Video Ideate PDF export | Added one-click `Download As PDF` to `/studio/ideate` so creators can save generated idea suggestions for future reference. Added `lib/videoIdeateExport.ts` for deterministic PDF layout + safe filename generation and unit coverage in `tests/unit/videoIdeateExport.test.ts`. Added `jspdf` runtime dependency and documented the new client-facing export error string in the Error Catalogue. |
+| 2026-04-26 | Video Ideate V1 | Added `Video Ideate` end-to-end (`/studio/ideate`, `/api/studio/ideate`, `lib/videoIdeate.ts`, `lib/videoIdeatePrompt.ts`) to generate last-30-days, YouTube-data-grounded niche ideas from user keyword seeds. Added Studio + command palette discoverability (`studio.ideate`), Getting Started mention, new ideate unit/integration suites, and updated error catalogue + integration docs. Coverage remains 100/100/100/100. |
 | 2026-04-23 | Thumbnail score parity completion | Extended per-variant thumbnail scoring to `ThumbnailStudio` so generated variants across all regeneration/generation surfaces now display `Readability` and `Curiosity` metrics (with graceful N/A fallback when scoring fails). This completes score-display parity for Video Analyzer, Pre-Publish Analyzer, and Thumbnail Generator workflows. |
 | 2026-04-23 | Thumbnail regeneration score parity | Standardized generated-thumbnail scoring display across recommendation-driven flows. `ThumbnailAnalysisPanel` (Video Analyzer) now scores each generated variant via `/api/thumbnail/file` and displays per-variant `Readability`, `Curiosity`, and composite score, matching Pre-Publish behavior. |
 | 2026-04-23 | Pre-publish one-click workflow | Simplified `/studio/prepublish` actions to a single end-to-end button: `Analyze + Generate Recommendations`. One run now executes metadata analysis, thumbnail analysis, metadata regeneration, thumbnail generation (3 variants), and per-variant thumbnail scoring. Generated recommendation bundles (analysis + regenerated metadata + scored variants) are now persisted into draft records when `Update Draft` is saved for future reference. |
