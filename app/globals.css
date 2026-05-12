@@ -34,12 +34,18 @@ html.dark body {
 
 html:not(.dark) .bg-zinc-950        { background-color: #fafafa; }                /* zinc-50 */
 html:not(.dark) .bg-zinc-950\/70    { background-color: rgb(244 244 245 / 0.7); } /* zinc-100/70 */
+html:not(.dark) .bg-zinc-950\/60    { background-color: rgb(244 244 245 / 0.6); }
 html:not(.dark) .bg-zinc-950\/50    { background-color: rgb(244 244 245 / 0.5); }
 html:not(.dark) .bg-zinc-900        { background-color: #ffffff; }
+html:not(.dark) .bg-zinc-900\/95    { background-color: rgb(255 255 255 / 0.97); }
+html:not(.dark) .bg-zinc-900\/85    { background-color: rgb(255 255 255 / 0.92); }
 html:not(.dark) .bg-zinc-900\/80    { background-color: rgb(255 255 255 / 0.9); }
 html:not(.dark) .bg-zinc-900\/70    { background-color: rgb(255 255 255 / 0.85); }
+html:not(.dark) .bg-zinc-900\/60    { background-color: rgb(255 255 255 / 0.8); }
+html:not(.dark) .bg-zinc-900\/50    { background-color: rgb(255 255 255 / 0.75); }
 html:not(.dark) .bg-zinc-800        { background-color: #e4e4e7; }                /* zinc-200 */
 html:not(.dark) .bg-zinc-800\/70    { background-color: rgb(228 228 231 / 0.7); }
+html:not(.dark) .bg-zinc-800\/60    { background-color: rgb(228 228 231 / 0.6); }
 html:not(.dark) .bg-zinc-700\/40    { background-color: rgb(212 212 216 / 0.5); } /* zinc-300/50 */
 
 html:not(.dark) .hover\:bg-zinc-800:hover { background-color: #e4e4e7; }
