@@ -127,7 +127,7 @@ export default function Home() {
 
         <section
           aria-labelledby="about-heading"
-          className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 shadow-xl backdrop-blur"
+          className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-8 shadow-xl backdrop-blur"
         >
           <h2
             id="about-heading"
@@ -144,7 +144,7 @@ export default function Home() {
 
         <section
           aria-labelledby="explore-heading"
-          className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 shadow-xl backdrop-blur"
+          className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-8 shadow-xl backdrop-blur"
         >
           <h2
             id="explore-heading"
@@ -161,7 +161,7 @@ export default function Home() {
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  className="block rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-violet-300 hover:border-violet-400 hover:text-violet-200"
+                  className="block rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-violet-300 hover:border-violet-400 hover:text-violet-200"
                 >
                   {link.label}
                 </Link>
@@ -172,7 +172,7 @@ export default function Home() {
 
         <section
           aria-labelledby="share-heading"
-          className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-xl backdrop-blur"
+          className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-xl backdrop-blur"
         >
           <h2
             id="share-heading"
