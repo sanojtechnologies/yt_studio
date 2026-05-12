@@ -103,7 +103,8 @@ Analyzes several clients' channels back-to-back. Needs the app to cache aggressi
 
 ```
 app/                      # Next.js pages & route handlers
-  page.tsx                # Landing (/) — key status + CTA
+  page.tsx                # Landing (/) — key status + CTA + SEO copy (§ 4.1)
+  apple-icon.tsx          # Edge-rendered 180×180 PNG → auto-injected <link rel="apple-touch-icon">
   robots.ts               # Crawler policy (allow public pages, block private/API paths)
   sitemap.ts              # Public-route sitemap.xml generator
   manifest.ts             # Web app manifest
@@ -183,6 +184,7 @@ lib/                      # Pure business logic (unit-testable, no Next imports)
   donate.ts               # resolveDonateUrl + DONATE_URL (env-aware, https-only)
   telemetry.ts            # serializeError + reportError seam
   siteUrl.ts              # Canonical NEXT_PUBLIC_SITE_URL parser + fallback
+  landingCopy.ts          # Landing-page SEO copy + internal-link inventory + share-intent helper (§ 4.1)
   apiKey.ts               # Server-side cookie readers (BYOK)
   clientApiKey.ts         # Client-side key storage + UI helpers
   errors.ts               # YouTube error classes + classifiers
@@ -207,7 +209,7 @@ Every feature below MUST be backed by at least one test. The "Tests" line is the
 
 ### 4.1 Landing page — `/` (`app/page.tsx`)
 
-**Purpose**: Show BYOK status and guard access to the rest of the app until both keys are present.
+**Purpose**: Show BYOK status, guard access to the rest of the app until both keys are present, AND serve as the SEO-indexable entry point for the project. The page must satisfy third-party SEO crawlers (Seobility et al.) on H1 length, content depth, internal-link breadth, and social-share affordances — see § 4.8 for the corresponding metadata + manifest contracts.
 
 **Requirements:**
 
@@ -218,8 +220,14 @@ Every feature below MUST be backed by at least one test. The "Tests" line is the
 - R5 A "View recent channels" link (to `/history`) is always visible.
 - R6 A "Compare channels" link (to `/compare`) and a "Creator Studio" link (to `/studio`) are always visible in the landing quick-links row.
 - R7 A "New here? Read the quick guide" link points to `/getting-started` (see § 4.14) from the hero copy so first-time users can bail out to the walkthrough before hitting the keys page.
+- R8 **SEO copy contract.** The H1 (`LANDING_H1` in `lib/landingCopy.ts`) is ≥ 20 characters and contains the brand keywords (`YT`, `Studio`, `Analyzer`); the document `<title>` (`LANDING_PAGE_TITLE`) shares those same keywords so crawlers stop flagging "title doesn't match content".
+- R9 **Body depth.** The page renders an `About` section with ≥ 3 prose paragraphs from `LANDING_BODY_PARAGRAPHS`. Combined with the hero tagline the visible body content totals ≥ 250 words and averages > 12 words per sentence, and explicitly repeats the H1 keywords (`YT Studio Analyzer`, `YouTube`, `channel`) inside body copy.
+- R10 **Internal-link inventory.** An `Explore` section renders every entry of `LANDING_INTERNAL_LINKS` (≥ 10 unique relative routes covering `/getting-started`, `/keys`, `/lookup`, `/compare`, `/compare/gap`, `/history`, `/studio`, and every public `/studio/*` tool) so the landing page exposes a healthy internal-link graph that mirrors `app/sitemap.ts`.
+- R11 **Social-share affordances.** A `Share` section renders ≥ 3 outbound share-intent links built from `LANDING_SHARE_LINKS` via `buildShareUrl(...)`, each opening in a new tab with `rel="noopener noreferrer"` and a `data-share-intent` attribute identifying the network.
 
-**Tests**: Manual verification; copy strings are asserted via the landing integration flow on CI when a UI test layer is added. (Currently uncovered by automated tests — see § 9.5 Known Gaps.)
+**Tests**:
+- `tests/unit/landingCopy.test.ts` — pins R8–R11 contracts: H1 length + keyword overlap, page title keyword overlap, ≥ 3 paragraphs / ≥ 250 words / > 12 words per sentence body depth, ≥ 10 unique internal links, ≥ 3 share intents, and full `buildShareUrl` branch coverage (twitter, linkedin, facebook, reddit).
+- The React tree itself (server component output) is not unit tested; copy strings render through the same `lib/landingCopy.ts` constants the tests assert, so any drift breaks the test before it can ship. See § 9.5 for the still-uncovered DOM-level layer.
 
 ---
 
@@ -526,7 +534,7 @@ Streams NDJSON events so the UI can render tokens as they arrive.
   - disallow: `/api/`, `/dashboard/`, `/keys`, `/keys/`, `/history`
   - includes `sitemap: <siteUrl>/sitemap.xml`
 - R5 `app/sitemap.ts` publishes only discoverable pages (`/`, `/lookup`, `/getting-started`, `/compare`, `/compare/gap`, `/studio`, and all `/studio/*` tool pages). Private routes are intentionally excluded.
-- R6 `app/manifest.ts` exposes Web App Manifest metadata (`name`, `short_name`, `description`, `start_url`, `display`, colors, icons).
+- R6 `app/manifest.ts` exposes Web App Manifest metadata (`name`, `short_name`, `description`, `start_url`, `display`, colors, icons). Icons MUST include both the legacy `/favicon.ico` entry AND the `/apple-icon` PNG (180×180) generated by `app/apple-icon.tsx`, so the manifest stays consistent with the Apple touch icon Next.js auto-injects into `<head>`.
 - R7 Sensitive pages are marked `robots: { index: false, follow: false }`:
   - `/keys`, `/keys/youtube`, `/keys/gemini`
   - `/dashboard/[channelId]`
@@ -534,10 +542,11 @@ Streams NDJSON events so the UI can render tokens as they arrive.
 - R8 Public discoverable pages define route-specific `metadata` with unique title/description + canonical alternates (`/`, `/lookup`, `/compare`, `/compare/gap`, `/studio`, `/getting-started`).
 - R9 Landing page emits a JSON-LD `WebApplication` block (`application/ld+json`) to improve rich-result eligibility.
 - R10 `viewport` metadata in `app/layout.tsx` sets `colorScheme` and dual `themeColor` entries for dark/light browser chrome.
+- R11 `app/apple-icon.tsx` serves a 180×180 PNG via `next/og`'s `ImageResponse`. Next.js auto-injects the corresponding `<link rel="apple-touch-icon">` tag so the Seobility "Mobile optimization" warning about missing Apple touch icons clears.
 
 **Tests**:
 - `tests/unit/siteUrl.test.ts` — env parsing/normalization, invalid-value fallback, http+https support.
-- `tests/unit/seoRoutes.test.ts` — robots disallow + sitemap URL, sitemap public-route inclusion/exclusion, manifest basics.
+- `tests/unit/seoRoutes.test.ts` — robots disallow + sitemap URL, sitemap public-route inclusion/exclusion, manifest basics, and Apple touch icon entry (180×180) for R11.
 
 ---
 
@@ -1369,6 +1378,7 @@ Any new dependency MUST be justified here (why a built-in / existing utility was
 
 | Date       | Author        | Change                                                                                 |
 |------------|---------------|----------------------------------------------------------------------------------------|
+| 2026-05-12 | Landing SEO pass | Resolved Seobility audit warnings on `/`. Extracted landing copy + link inventory into new `lib/landingCopy.ts` (H1 `LANDING_H1` ≥ 20 chars and keyword-aligned with the document `<title>`, 4-paragraph 250+ word body with > 12 words/sentence average, 16-entry internal-link list mirroring `app/sitemap.ts`, and 4 social share intents via `buildShareUrl`). Rewrote `app/page.tsx` to render an `About`, `Explore`, and `Share` section consuming those constants. Added `app/apple-icon.tsx` (180×180 ImageResponse) so Next.js auto-injects `<link rel="apple-touch-icon">`, and added the matching entry to `app/manifest.ts`. Updated PRD § 4.1 (R8–R11), § 4.8 (R11 + manifest icon contract), and the directory map. New test suite `tests/unit/landingCopy.test.ts`; extended `tests/unit/seoRoutes.test.ts` manifest test to pin the apple icon. |
 | 2026-04-26 | Vercel Speed Insights integration | Added Vercel Speed Insights globally by mounting `<SpeedInsights />` in `app/layout.tsx` and adding runtime dependency `@vercel/speed-insights` to capture real-user performance metrics across routes. Updated External Integrations + Dependencies sections accordingly. |
 | 2026-04-26 | Vercel Web Analytics integration | Added Vercel Web Analytics globally by mounting `<Analytics />` in `app/layout.tsx` and adding runtime dependency `@vercel/analytics` for lightweight website usage visibility. Updated External Integrations + Dependencies sections accordingly. |
 | 2026-04-26 | Getting-started readability refresh | Reworked Step 6 dashboard notes into a structured mini-section (`Also New On The Dashboard`) with concise bullets for Title Trends decision signals, performance-chart title tooltips, local snapshot caching, and growth-history behavior. Improves scanability without adding new onboarding steps. |

@@ -67,4 +67,12 @@ describe("manifest route", () => {
     expect(result.name).toBe("YT Studio Analyzer");
     expect(result.icons?.some((icon) => icon.src === "/favicon.ico")).toBe(true);
   });
+
+  it("advertises an Apple touch icon so the mobile-optimization warning clears", async () => {
+    const manifest = await loadManifest();
+    const result = manifest();
+    const apple = result.icons?.find((icon) => icon.src === "/apple-icon");
+    expect(apple).toBeDefined();
+    expect(apple?.sizes).toBe("180x180");
+  });
 });
